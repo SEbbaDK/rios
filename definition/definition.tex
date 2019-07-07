@@ -1,0 +1,117 @@
+\documentclass{report}
+\usepackage[utf8]{inputenc}
+\usepackage[leqno]{amsmath}
+\usepackage{amsfonts}
+\usepackage{xparse}
+
+\newenvironment{semantics}
+{\gather}
+{\endgather}
+
+\newenvironment{transitionrule}[1]
+{
+    \tag{#1}
+    \let\premisevar\undefined
+    \let\conclusionvar\undefined
+    \let\conditionvar\undefined
+}
+{
+\ifx\premisevar\undefined
+    \conclusionvar
+\else
+    \frac
+    {
+        \begin{gathered}
+            \premisevar
+        \end{gathered}
+    }
+    {
+        \conclusionvar
+    }
+\fi
+\ifx\conditionvar\undefined
+\else
+    \textbf{ where }
+    \begin{gathered}
+        \conditionvar
+    \end{gathered}
+\fi
+}
+
+%-------------------------------
+
+\newcommand{\conf}[1]{\langle#1\rangle}
+\newcommand{\turnstyle}{\vdash}
+\newcommand{\syntax}[1]{\textcolor{blue}{\textbf{#1}}}
+\newcommand{\syntaxparameter}[1]{[\![#1]\!]}
+
+\newcommand{\conclusion}[1]{\newcommand{\conclusionvar}{#1}}
+\newcommand{\premise}[1]{
+    \ifx\premisevar\undefined
+        \newcommand{\premisevar}{#1}
+    \else
+        \edef\premisevar{\premisevar \cr #1}
+    \fi
+}
+\newcommand{\condition}[1]
+{
+    \ifx\conditionvar\undefined
+        \newcommand{\conditionvar}{#1}
+    \else
+        \edef\conditionvar{\conditionvar \cr #1}
+    \fi
+}
+
+\newcommand{\transition}[4]{#1 \turnstyle \conf{#2} #3 \conf{#4}}
+
+%-------------------------------
+\begin{document}
+
+\section{Abstract Syntax}
+\begin{array}{r@{\;\in\;}ll}
+test & memes & test
+\end{array}
+
+
+\section{Helping Functions}
+\begin{gather}
+\mathcal{N} : n \rightarrow \mathbb{Q} \\
+\begin{gathered}
+    ancestors : Name_s \rightarrow Name_s^* \\
+    ancestors(s) = s \cup ancestors(s_{parent})
+\end{gathered}
+\end{gather}
+
+\section{Environments}
+\begin{align}
+    sta \in Sta &= Name_s \rightharpoonup (%
+    \underbrace{Rea^*}_{Reactions} \times%
+    \underbrace{Stmt}_{\substack{Transition\\ Statements}} \times%
+    \underbrace{Var}_{\substack{Variable\\ Environment}} %
+    %\underbrace{Pri}_{Priorities}%
+    ) \\
+    fam \in Fam &= Name_s \rightharpoonup (%
+    \underbrace{Names_\varepsilon}_{Parent} \times%
+    \underbrace{Names_\varepsilon}_{\substack{Default\\ Child}} \times%
+    \underbrace{Names_\varepsilon^*}_{Children}%
+    ) \\
+    var \in Var &= Name_v \rightharpoonup Loc \\
+    sto \in Sto &= Loc \rightharpoonup Val
+\end{align}
+
+\section{Phase Transitions}
+\begin{semantics}
+\begin{transitionrule}{PHASE-READ}
+    \premise{test}
+    \premise{tester}
+    \premise{test}
+    \premise{tester}
+    \conclusion{\transition{sta}{john}{\rightarrow}{john'}}
+    \condition{john' = memes}
+    \condition{john' = memes}
+    \condition{john' = memes}
+    \condition{john' = memes}
+\end{transitionrule}
+\end{semantics}
+
+\end{document}
