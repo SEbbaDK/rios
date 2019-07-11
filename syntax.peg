@@ -3,14 +3,14 @@ Program
 Decs
 	= (Dec _)*
 Dec
-	= VarDec
+	= NameDec
     / StateDec
     / ReactDec
 ReactDec
 	= ("onenter"/"always") _ Result
     / "when" _ Expr _ WhenCont
 WhenCont
-	= BoolOp? _ Cases
+	= (CompOp/BoolOp)? _ Cases
     / Result
 Cases
 	= Case _ (Cases)*
@@ -19,37 +19,97 @@ Case
 Result
 	= ":" _ Stmts
 
-VarDec
-	= ("int"/"bool"/"pin"/"serial") _ VarId _ "=" _ Expr
-VarId
+NameDec
+	= Type _ NameId _ Params? _ "=" _ (Stmts/Expr)
+NameId
 	= [a-z][a-zA-Z]*
+Params
+    = "(" _ (Param _ ("," _ Param)*)? _ ")"
+Param
+    = Type _ NameId
+Type
+    = "bool"/"int"/"float"/"short"/"pin"/"serial"/"proc"
 
 StateDec
 	= "default"? _ "state" _ StateId _ "{" _ Decs _ "}"
 StateId
 	= [A-Z][a-zA-Z]*
 
-Expr
-	= Con (_ (AritOp/BoolOp) _ Expr)?
-AritOp
-	= [+-/*%&|~]/">>"/"<<"
-BoolOp
-	= "=="/"!="/"&&"/"||"/">"/">="/"<"/"<="
-Con
-	= Num
-    / "true" / "false" / "high" / "low"
-    / [da] _ "@" _ Num
-    / ("usb"/"pin") _ "$" _ Num
-Num
-	= [0-9]+("."[0-9]+)?
-
 Stmts
 	= "[" _ Stmt _ (";" _ Stmt?)* _ "]"
     / Stmt
 Stmt
-	= VarDec
-    / VarId _ (AritOp?"=") _ Expr
+	= NameDec
+    / NameId _ ((AritOp/BitOp)?"=") _ Expr
     / "enter" _ StateId
+    / "run" _ NameId
+
+Expr
+	= ExprBOr //Con (_ (AritOp/BoolOp/CompOp) _ Expr)?
+ExprBOr
+	= ExprBAnd (_ BoolOrOp _ Expr)?
+ExprBAnd
+	= ExprBXor (_ BoolAndOp _ Expr)?
+ExprBXor
+	= ExprComp (_ BoolXorOp _ Expr)?
+ExprComp
+	= ExprMult (_ (CompOp/ChangeOp) _ Expr)?
+ExprMult
+	= ExprAdd (_ (AritMultOp/BitAndOp/BitXorOp) _ Expr)?
+ExprAdd
+	= ExprNeg (_ (AritAddOp/BitOrOp) _ Expr)?
+ExprNeg
+	= (BoolNegOp/BitNegOp)? _ ExprOld
+ExprOld
+    = (OldOp)? _ ExprCall
+ExprCall
+	= ExprParen _ ("(" _ (Expr _ ("," _ Expr)*)? _ ")")?
+ExprParen
+    = "(" _ Expr _ ")"
+    / Con
+
+AritOp
+	= AritAddOp/AritMultOp
+AritAddOp
+	= [+-]
+AritMultOp
+	= [*%/]
+BitOp
+	= BitNegOp/BitAndOp/BitOrOp/BitXorOp/BitShiftOp
+BitNegOp
+	= "~"
+BitAndOp
+	= [&] ![&]
+BitOrOp
+	= [|] ![|]
+BitXorOp
+	= "^" !"^"
+BitShiftOp
+	= ">>"/"<<"
+BoolOp
+	= BoolOrOp/BoolAndOp/BoolXorOp/BoolNegOp
+BoolOrOp
+	= "||"
+BoolAndOp
+	= "&&"
+BoolXorOp
+    = "^^"
+BoolNegOp
+	= "!"
+CompOp
+	= [=<>!][=]
+ChangeOp
+	= "->"/"!>"
+OldOp
+	= "§"
+Con
+    = "B"[01]+
+    / ("H"/"0x")[0-9a-fA-F]+
+	/ "D"?[0-9]+("."[0-9]+)?
+    / "true" / "false" / "high" / "low"
+    / [da] _ "@" _ [0-9]+
+    / ("usb"/"pin") _ "$" _ [0-9]+
+    / NameId
 
 _
-	= [ \t\n\r]*
+	= $[ \t\n\r]*
