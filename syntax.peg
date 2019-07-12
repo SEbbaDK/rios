@@ -6,9 +6,11 @@ Dec
 	= NameDec
     / StateDec
     / ReactDec
+    / StructDec
 ReactDec
 	= ("onenter"/"always") _ Result
     / "when" _ Expr _ WhenCont
+    / ("every"/"after") _ Expr _ Unit _ Result
 WhenCont
 	= (CompOp/BoolOp)? _ Cases
     / Result
@@ -18,6 +20,8 @@ Case
 	= "|" _ BoolOp? _ Expr _ Result
 Result
 	= ":" _ Stmts
+Unit
+	= "d"/"h"/"m"/"s"/"ms"/"µs"
 
 NameDec
 	= Type _ NameId _ Params? _ "=" _ (Stmts/Expr)
@@ -35,6 +39,9 @@ StateDec
 StateId
 	= [A-Z][a-zA-Z]*
 
+StructDec
+	= "struct" _ NameId _ "{" _ (NameDec _)* _ "}"
+
 Stmts
 	= "[" _ Stmt _ (";" _ Stmt?)* _ "]"
     / Stmt
@@ -42,7 +49,7 @@ Stmt
 	= NameDec
     / NameId _ ((AritOp/BitOp)?"=") _ Expr
     / "enter" _ StateId
-    / "run" _ NameId
+    / "run" _ Expr
 
 Expr
 	= ExprBOr //Con (_ (AritOp/BoolOp/CompOp) _ Expr)?
@@ -61,7 +68,9 @@ ExprAdd
 ExprNeg
 	= (BoolNegOp/BitNegOp)? _ ExprOld
 ExprOld
-    = (OldOp)? _ ExprCall
+    = (OldOp)? _ ExprSub
+ExprSub
+	= ExprCall (_ "." _ Expr)?
 ExprCall
 	= ExprParen _ ("(" _ (Expr _ ("," _ Expr)*)? _ ")")?
 ExprParen
@@ -104,10 +113,10 @@ OldOp
 	= "§"
 Con
     = "B"[01]+
-    / ("H"/"0x")[0-9a-fA-F]+
+    / ("H"/"0"?"x")[0-9a-fA-F]+
 	/ "D"?[0-9]+("."[0-9]+)?
     / "true" / "false" / "high" / "low"
-    / [da] _ "@" _ [0-9]+
+    / ("o""utput"? / "i""nput"? ("-"? "p" "ullup"?)?) _ "@" _ "A"?[0-9]+
     / ("usb"/"pin") _ "$" _ [0-9]+
     / NameId
 
