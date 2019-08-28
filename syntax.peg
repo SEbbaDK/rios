@@ -32,7 +32,7 @@ Params
 Param
     = Type _ NameId
 Type
-    = "bool"/"int"/"float"/"short"/"pin"/"serial"/"proc"
+    = "bool"/"int"/"float"/"short"/"pin"/"serial"/"proc"/"string"/"char"
 
 StateDec
 	= "default"? _ "state" _ StateId _ "{" _ Decs _ "}"
@@ -47,7 +47,7 @@ Stmts
     / Stmt
 Stmt
 	= NameDec
-    / NameId _ ((AritOp/BitOp)?"=") _ Expr
+    / DerefOp? _ NameId _ ((AritOp/BitOp)?"=") _ Expr
     / "enter" _ StateId
     / "run" _ Expr
 
@@ -72,7 +72,9 @@ ExprOld
 ExprSub
 	= ExprCall (_ "." _ Expr)?
 ExprCall
-	= ExprParen _ ("(" _ (Expr _ ("," _ Expr)*)? _ ")")?
+	= ExprDeref _ ("(" _ (Expr _ ("," _ Expr)*)? _ ")")?
+ExprDeref
+	= DerefOp? ExprParen
 ExprParen
     = "(" _ Expr _ ")"
     / Con
@@ -106,11 +108,13 @@ BoolXorOp
 BoolNegOp
 	= "!"
 CompOp
-	= [=<>!][=]
+	= [<>][=]? / [=!][=]
 ChangeOp
 	= "->"/"!>"
 OldOp
 	= "§"
+DerefOp
+	= "*"
 Con
     = "B"[01]+
     / ("H"/"0"?"x")[0-9a-fA-F]+
@@ -119,6 +123,7 @@ Con
     / ("o""utput"? / "i""nput"? ("-"? "p" "ullup"?)?) _ "@" _ "A"?[0-9]+
     / ("usb"/"pin") _ "$" _ [0-9]+
     / NameId
+    / ["] [^"]* ["]
 
 _
-	= $[ \t\n\r]*
+	= $[ \t\n\r]+ _ / [/][/] [^\n]* [\n] _ / [#] [^\n]* [\n] _ / [/][*] ([^*]+![/])* [*][/] _ / ""
