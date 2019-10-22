@@ -12,7 +12,7 @@ ReactDec
     / "when" _ Expr _ WhenCont
     / ("every"/"after") _ Expr _ Unit _ Result
 WhenCont
-	= (CompOp/BoolOp)? _ Cases
+	= (CompOp/BoolOp/ChangeOp)? _ Cases
     / Result
 Cases
 	= Case _ (Cases)*
@@ -32,7 +32,7 @@ Params
 Param
     = Type _ NameId
 Type
-    = "bool"/"int"/"float"/"short"/"pin"/"serial"/"proc"/"string"/"char"
+    = (("u"?"int"("8"/"16"/"32"))/"bool"/"float"/"pin"/"serial"/"proc"/"string"/"char") _ "[]"?
 
 StateDec
 	= "default"? _ "state" _ StateId _ "{" _ Decs _ "}"
@@ -47,7 +47,7 @@ Stmts
     / Stmt
 Stmt
 	= NameDec
-    / DerefOp? _ NameId _ ((AritOp/BitOp)?"=") _ Expr
+    / Expr _ ((AritOp/BitOp)?"=") _ Expr
     / "enter" _ StateId
     / "run" _ Expr
 
@@ -116,14 +116,16 @@ OldOp
 DerefOp
 	= "*"
 Con
-    = "B"[01]+
-    / ("H"/"0"?"x")[0-9a-fA-F]+
-	/ "D"?[0-9]+("."[0-9]+)?
+    = "[" _ Con _ ("," _ Con)* _ ","? _ "]"
+    / "0b"[01]+("."[01]+)?
+    / "0o"[0-7]+("."[0-7]+)?
+    / "0"[xh][0-9a-fA-F]+("."[0-9a-fA-F]+)?
+	/ "0d"?[0-9]+("."[0-9]+)?
     / "true" / "false" / "high" / "low"
     / ("o""utput"? / "i""nput"? ("-"? "p" "ullup"?)?) _ "@" _ "A"?[0-9]+
     / ("usb"/"pin") _ "$" _ [0-9]+
     / NameId
-    / ["] [^"]* ["]
+    / "\"" [^"]* "\""
 
 _
 	= $[ \t\n\r]+ _ / [/][/] [^\n]* [\n] _ / [#] [^\n]* [\n] _ / [/][*] ([^*]+![/])* [*][/] _ / ""
