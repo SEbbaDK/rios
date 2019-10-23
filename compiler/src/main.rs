@@ -15,7 +15,7 @@ fn main() {
 		let mut input = String::new();
 		std::io::stdin().read_line(&mut input).unwrap();
 		println!("Entered: <{}>", input);
-		let parse = RiosParser::parse(Rule::con, &input);
+		let parse = RiosParser::parse(Rule::Program, &input);
 		println!("{:?}\n", parse);
 	}
 }

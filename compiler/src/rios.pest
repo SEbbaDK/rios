@@ -4,29 +4,119 @@ COMMENT	= _{
 	| ("#"|"//") ~ (!"\n" ~ ANY)* ~ "\n"
 }
 
-con = ${
-	string_con
-	| "0b" ~ bin_digit+ ~ ("." ~ bin_digit+)?
-	| "0o" ~ oct_digit+ ~ ("." ~ oct_digit+)?
-	| "0" ~ ("x"|"h") ~ hex_digit+ ~ ("." ~ hex_digit+)?
-	| "0d"? ~ dec_digit+ ~ ("." ~ dec_digit+)?
-	| "true" | "false" | "high" | "low"
-	| ("o" ~ "utput"? | "i" ~ "nput"? ~ ("-"? ~ "p" ~ "ullup"?)?) ~ "@" ~ "A"? ~ dec_digit+
-	| ("usb"|"pin") ~ "$" ~ dec_digit+
-	| var_name
-	| "\"" ~ not_quote* ~ "\""
+Program = { SOI ~ Decs ~ EOI }
+Decs = { Dec* }
+Dec = { 
+	VarDec
+    | StateDec
+    | ReactDec
+    | StructDec
 }
-string_con = !{ "[" ~ con ~ ("," ~ con)* ~ ","? ~ "]" }
+ReactDec = { 
+    ("onenter"|"always") ~ Result
+    | "when" ~ Expr ~ WhenCont
+    | ("every"|"after") ~ Expr ~ Unit ~ Result
+}
+WhenCont = { 
+    (CompOp|BoolOp|ChangeOp)? ~ Cases
+    | Result
+}
+Cases = { Case ~ (Cases)* }
+Case = { "|" ~ BoolOp? ~ Expr ~ Result }
+Result = { ":" ~ Stmts }
+Unit = { "d"|"h"|"m"|"s"|"ms"|"µs" }
 
-not_quote 		= @{ !"\"" ~ ANY }
-bin_digit 	= @{ '0'..'1' }
-oct_digit 	= @{ '0'..'7' }
-dec_digit	= @{ '0'..'9' }
-hex_digit	= @{ dec_digit | 'a'..'f' | 'A'..'F' }
+VarDec = { Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
+Params = { "(" ~ (Param ~ ("," ~ Param)*)? ~ ")" }
+Param = { Type ~ VarName }
+Type = { (IntType|"bool"|"float"|"pin"|"serial"|"proc"|"string"|"char") ~ "[]"? }
+IntType = { ("u"? ~ "int" ~ ("8"|"16"|"32")) }
 
-letter		= @{ lowercase | uppercase }
-lowercase	= @{ 'a'..'z' | 'à'..'ÿ' }
-uppercase	= @{ 'A'..'Z' | 'À'..'ß' }
+StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Decs ~ "}"  }
 
-var_name	= @{ lowercase ~ letter* }
-state_name	= @{ uppercase ~ letter* }
+StructDec = { "struct" ~ VarName ~ "{" ~ VarDec* ~ "}" }
+
+Stmts = {
+	"[" ~ Stmt ~ (";" ~ Stmt?)* ~ "]"
+	| Stmt
+}
+Stmt = { 
+	VarDec
+    | Expr ~ ((AritOp|BitOp)? ~ "=") ~ Expr
+    | "enter" ~ StateName
+    | "run" ~ Expr
+}
+
+Expr = { ExprBOr }
+ExprBOr = { ExprBAnd ~ ( BoolOrOp ~ Expr)? }
+ExprBAnd = { ExprBXor ~ ( BoolAndOp ~ Expr)? }
+ExprBXor = { ExprComp ~ ( BoolXorOp ~ Expr)? }
+ExprComp = { ExprMult ~ ( (CompOp|ChangeOp) ~ Expr)? }
+ExprMult = { ExprAdd ~ ( (AritMultOp|BitAndOp|BitXorOp) ~ Expr)? }
+ExprAdd = { ExprNeg ~ ( (AritAddOp|BitOrOp) ~ Expr)? }
+ExprNeg = { (BoolNegOp|BitNegOp)? ~ ExprOld }
+ExprOld = { (OldOp)? ~ ExprSub }
+ExprSub = { ExprCall ~ ( "." ~ Expr)? }
+ExprCall = { ExprDeref  ~ ("(" ~ (Expr  ~ ("," ~ Expr)*)? ~ ")")? }
+ExprDeref = { DerefOp? ~ ExprParen }
+ExprParen = { 
+	"(" ~ Expr ~ ")" 
+	| Con
+}
+
+Con = ${
+	ArrayCon
+	| BinCon
+	| OctCon
+	| HexCon
+	| DecCon
+	| BoolCon
+	| PinCon
+	| SerialCon
+	| VarName
+	| StringCon
+}
+BinCon = @{ "0b" ~ BinDigit+ ~ ("." ~ BinDigit+)? }
+OctCon = @{ "0o" ~ OctDigit+ ~ ("." ~ OctDigit+)? }
+HexCon = @{ "0" ~ ("x"|"h") ~ HexDigit+ ~ ("." ~ HexDigit+)? }
+DecCon = @{ "0d"? ~ DecDigit+ ~ ("." ~ DecDigit+)? }
+BoolCon = @{ "true" | "false" | "high" | "low" }
+PinCon = @{ ("o" ~ "utput"? | "i" ~ "nput"? ~ ("-"? ~ "p" ~ "ullup"?)?) ~ "@" ~ "A"? ~ DecDigit+ }
+SerialCon = @{ ("usb"|"pin") ~ "$" ~ DecDigit+ }
+ArrayCon = !{ "[" ~ Con ~ ("," ~ Con)* ~ ","? ~ "]" }
+StringCon = @{ "\"" ~ NotQuote* ~ "\"" }
+
+NotQuote 		= @{ !"\"" ~ ANY }
+BinDigit 	= @{ '0'..'1' }
+OctDigit 	= @{ '0'..'7' }
+DecDigit	= @{ '0'..'9' }
+HexDigit	= @{ DecDigit | 'a'..'f' | 'A'..'F' }
+
+Letter		= @{ Lowercase | Uppercase }
+Lowercase	= @{ 'a'..'z' | 'à'..'ÿ' }
+Uppercase	= @{ 'A'..'Z' | 'À'..'ß' }
+
+VarName		= @{ Lowercase ~ Letter* }
+StateName	= @{ Uppercase ~ Letter* }
+
+AritOp = { AritAddOp|AritMultOp }
+AritAddOp 	= { "+" | "-" }
+AritMultOp	= { "*" | "%" | "/" }
+
+BitOp = { BitNegOp|BitAndOp|BitOrOp|BitXorOp|BitShiftOp }
+BitNegOp	= { "~" }
+BitAndOp	= { "&" ~ !"&" }
+BitOrOp		= { "|" ~ !"|" }
+BitXorOp	= { "^" ~ !"^" }
+BitShiftOp	= { ">>" | "<<" }
+
+BoolOp	= { BoolOrOp|BoolAndOp|BoolXorOp|BoolNegOp }
+BoolOrOp	= { "||" }
+BoolAndOp	= { "&&" }
+BoolXorOp	= { "^^" }
+BoolNegOp	= { "!" }
+
+CompOp	= { ("<"|">") ~ "="? | ("="|"!") ~ "=" }
+ChangeOp= { "->"|"!>" }
+OldOp	= { "§" }
+DerefOp	= { "*" }
