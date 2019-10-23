@@ -5,3 +5,6 @@ abstract class LocalCompilerException(phase: String, line: Int, column: Int, mes
     CompilerException(phase, "<line:$line,column:$column> $message")
 
 class LexerException(line: Int, column: Int, message: String) : LocalCompilerException("Lexer", line, column, message)
+{
+    constructor(codeCoordinate: CodeCoordinate, message: String) : this(codeCoordinate.line, codeCoordinate.column, message)
+}

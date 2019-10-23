@@ -11,9 +11,14 @@ class Token(
     val type : TokenType,
     val value : Any?,
     val code : String
-) : CodeCoordinate(coordinate.location, coordinate.line, coordinate.column)
+
+) : CodeCoordinate(coordinate.location, coordinate.line, coordinate.column) {
+    override fun toString(): String = "Token[type=$type, value=$value, code='$code']"
+}
+
 enum class TokenType(val code: String?)
 {
+    EOF,
     StateId,
     NameId,
 
@@ -29,6 +34,9 @@ enum class TokenType(val code: String?)
     USecond ("s"),
     UMillisecond ("ms"),
     UMicrosecond ("µs"),
+
+    OParensOpen ("("),
+    OParensClose (")"),
 
     OAdd      ("+"),
     OSubtract ("-"),
@@ -79,8 +87,8 @@ enum class TokenType(val code: String?)
     CSerial;
     constructor() : this(null)
     companion object {
-        val hashes = TokenType.values().map{ t -> t.code.hashCode() }.toSet()
-        fun contains(input : String) = hashes.contains(input.hashCode())
+        val names = TokenType.values().map{ t -> if (t.code != null) t.code else null }.toSet()
+        fun contains(input : String) = names.contains(input)
         fun get(input : String) =
             values().filter{ t -> t.code == input }.firstOrNull()
                 ?: throw RuntimeException("Attempted to get a TokenType with an invalid code-bit")
@@ -109,7 +117,7 @@ class Lexer(file: String)
 
     private fun peek() : Char = when
     {
-        location > input.length -> '\u0000'
+        location >= input.length -> '\u0000'
         else                    -> input[location]
     }
     private fun peek(string : String) : Boolean = when
@@ -142,11 +150,17 @@ class Lexer(file: String)
 
     fun lex() : Token = when
     {
-        peek.isWhitespace() -> { ignore() ; lex() }
-        peek.isLetter() -> lexNameId()
+        peek().isWhitespace() -> { ignore() ; lex() }
+        peek().isLetter() -> lexId()
+        peek().isDigit() -> lexNumber()
+        peek() == '"' -> lexString()
+        peek("//") || peek() == '#' -> { ignoreUntil("\n") ; lex() }
+        peek("/*") -> { ignoreUntil("*/") ; lex() }
+        peek() == '\u0000' -> Token(CodeCoordinate(location, line, column), TokenType.EOF, null, "")
+        else -> lexOp() //throw LexerException(line, column, "Unexpected character: '${peek()}' <${peek().toInt()}>")
     }
 
-    private fun lexNameId() : Token
+    private fun lexId() : Token
     {
         val coordinate = CodeCoordinate(location, line, column)
         val start = location
@@ -162,5 +176,23 @@ class Lexer(file: String)
             name,
             name
         )
+    }
+
+    private fun lexOp() : Token
+    {
+        val coordinate = CodeCoordinate(location, line, column)
+        val start = location
+        while (!peek().isWhitespace() && !peek().isLetter() && !peek().isDigit())
+            advance(1)
+        val end = location
+
+        var dynEnd = end
+        var op = input.substring(start, dynEnd)
+        while(!TokenType.contains(op)) {
+            dynEnd -= 1
+            op = input.substring(start, dynEnd)
+            if (dynEnd < start) throw LexerException(coordinate, "This operator doesn't exist: \"${op}\"")
+        }
+        return Token(coordinate, TokenType.get(op), null, op)
     }
 }
