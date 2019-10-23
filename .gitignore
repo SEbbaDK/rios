@@ -1,3 +1,10 @@
 \.gradle
 compiler/\.idea/workspace\.xml
 compiler/build/*
+compiler/out/*
+definition/*.aux
+definition/*.log
+definition/*.fls
+definition/*.synctex.gz
+definition/*.fdb_latexmk
+*.swp
