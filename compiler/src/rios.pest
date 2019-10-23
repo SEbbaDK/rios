@@ -1,0 +1,32 @@
+WHITESPACE = _{ " "|"\t"|"\n"|"\r" }
+COMMENT	= _{
+	"/*" ~ (!"*/" ~ ANY)* ~ "*/"
+	| ("#"|"//") ~ (!"\n" ~ ANY)* ~ "\n"
+}
+
+con = ${
+	string_con
+	| "0b" ~ bin_digit+ ~ ("." ~ bin_digit+)?
+	| "0o" ~ oct_digit+ ~ ("." ~ oct_digit+)?
+	| "0" ~ ("x"|"h") ~ hex_digit+ ~ ("." ~ hex_digit+)?
+	| "0d"? ~ dec_digit+ ~ ("." ~ dec_digit+)?
+	| "true" | "false" | "high" | "low"
+	| ("o" ~ "utput"? | "i" ~ "nput"? ~ ("-"? ~ "p" ~ "ullup"?)?) ~ "@" ~ "A"? ~ dec_digit+
+	| ("usb"|"pin") ~ "$" ~ dec_digit+
+	| var_name
+	| "\"" ~ not_quote* ~ "\""
+}
+string_con = !{ "[" ~ con ~ ("," ~ con)* ~ ","? ~ "]" }
+
+not_quote 		= @{ !"\"" ~ ANY }
+bin_digit 	= @{ '0'..'1' }
+oct_digit 	= @{ '0'..'7' }
+dec_digit	= @{ '0'..'9' }
+hex_digit	= @{ dec_digit | 'a'..'f' | 'A'..'F' }
+
+letter		= @{ lowercase | uppercase }
+lowercase	= @{ 'a'..'z' | 'à'..'ÿ' }
+uppercase	= @{ 'A'..'Z' | 'À'..'ß' }
+
+var_name	= @{ lowercase ~ letter* }
+state_name	= @{ uppercase ~ letter* }
