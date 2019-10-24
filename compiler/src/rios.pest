@@ -18,13 +18,14 @@ ReactDec = {
     | ("every"|"after") ~ Expr ~ Unit ~ Result
 }
 WhenCont = { 
-    (CompOp|BoolOp|ChangeOp)? ~ Cases
+    WhenOps? ~ Cases
     | Result
 }
 Cases = { Case ~ (Cases)* }
-Case = { "|" ~ BoolOp? ~ Expr ~ Result }
+Case = { "|" ~ WhenOps? ~ Expr ~ Result }
+WhenOps = { CompOp|BoolOp|ChangeOp }
 Result = { ":" ~ Stmts }
-Unit = { "d"|"h"|"m"|"s"|"ms"|"µs" }
+Unit = { "µs"|"ms"|"s"|"m"|"h"|"d" }
 
 VarDec = { Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
 Params = { "(" ~ (Param ~ ("," ~ Param)*)? ~ ")" }
@@ -54,7 +55,7 @@ ExprBXor = { ExprComp ~ ( BoolXorOp ~ Expr)? }
 ExprComp = { ExprMult ~ ( (CompOp|ChangeOp) ~ Expr)? }
 ExprMult = { ExprAdd ~ ( (AritMultOp|BitAndOp|BitXorOp) ~ Expr)? }
 ExprAdd = { ExprNeg ~ ( (AritAddOp|BitOrOp) ~ Expr)? }
-ExprNeg = { (BoolNegOp|BitNegOp)? ~ ExprOld }
+ExprNeg = { (BoolNegOp|BitNegOp|AritNegOp)? ~ ExprOld }
 ExprOld = { (OldOp)? ~ ExprSub }
 ExprSub = { ExprCall ~ ( "." ~ Expr)? }
 ExprCall = { ExprDeref  ~ ("(" ~ (Expr  ~ ("," ~ Expr)*)? ~ ")")? }
@@ -102,6 +103,7 @@ StateName	= @{ Uppercase ~ Letter* }
 AritOp = { AritAddOp|AritMultOp }
 AritAddOp 	= { "+" | "-" }
 AritMultOp	= { "*" | "%" | "/" }
+AritNegOp	= { "-" | "+" }
 
 BitOp = { BitNegOp|BitAndOp|BitOrOp|BitXorOp|BitShiftOp }
 BitNegOp	= { "~" }

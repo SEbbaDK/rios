@@ -17,11 +17,11 @@ WhenCont
 Cases
 	= Case _ (Cases)*
 Case
-	= "|" _ BoolOp? _ Expr _ Result
+	= "|" _ (CompOp/BoolOp/ChangeOp)? _ Expr _ Result
 Result
 	= ":" _ Stmts
 Unit
-	= "d"/"h"/"m"/"s"/"ms"/"µs"
+	= "µs"/"ms"/"s"/"m"/"h"/"d"
 
 NameDec
 	= Type _ NameId _ Params? _ "=" _ (Stmts/Expr)
@@ -66,7 +66,7 @@ ExprMult
 ExprAdd
 	= ExprNeg (_ (AritAddOp/BitOrOp) _ Expr)?
 ExprNeg
-	= (BoolNegOp/BitNegOp)? _ ExprOld
+	= (BoolNegOp/BitNegOp/AritNegOp)? _ ExprOld
 ExprOld
     = (OldOp)? _ ExprSub
 ExprSub
@@ -85,6 +85,8 @@ AritAddOp
 	= [+-]
 AritMultOp
 	= [*%/]
+AritNegOp
+	= [+-]
 BitOp
 	= BitNegOp/BitAndOp/BitOrOp/BitXorOp/BitShiftOp
 BitNegOp
@@ -128,4 +130,7 @@ Con
     / "\"" [^"]* "\""
 
 _
-	= $[ \t\n\r]+ _ / [/][/] [^\n]* [\n] _ / [#] [^\n]* [\n] _ / [/][*] ([^*]+![/])* [*][/] _ / ""
+	= $[ \t\n\r]+ _ 
+    / [/][/] [^\n]* [\n] _ 
+    / [#] [^\n]* [\n] _ 
+    / [/][*] ([^*]+![/])* [*][/] _ / ""

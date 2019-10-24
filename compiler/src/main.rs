@@ -8,14 +8,11 @@ use pest::Parser;
 #[grammar = "rios.pest"]
 pub struct RiosParser;
 
-fn main() {
-	loop
-	{
-		println!("Enter value to parse: ");
-		let mut input = String::new();
-		std::io::stdin().read_line(&mut input).unwrap();
-		println!("Entered: <{}>", input);
-		let parse = RiosParser::parse(Rule::Program, &input);
-		println!("{:?}\n", parse);
-	}
+use std::fs;
+
+fn main() 
+{
+	let code = fs::read_to_string("fade.rios").expect("Cannot read file");
+	let parse = RiosParser::parse(Rule::Program, &code);
+	println!("Result of parsing file: {:#?}", parse);
 }
