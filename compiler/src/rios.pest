@@ -4,8 +4,8 @@ COMMENT	= _{
 	| ("#"|"//") ~ (!"\n" ~ ANY)* ~ "\n"
 }
 
-Program = { SOI ~ Decs ~ EOI }
-Decs = { Dec* }
+Program = _{ SOI ~ Decs ~ EOI }
+Decs = _{ Dec* }
 Dec = { 
 	VarDec
     | StateDec
