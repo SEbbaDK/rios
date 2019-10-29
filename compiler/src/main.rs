@@ -13,7 +13,7 @@ use std::fs;
 fn main() 
 {
 	let code = fs::read_to_string("fade.rios").expect("Cannot read file");
-	let parsetree = RiosParser::parse(Rule::Program, &code).unwrap();
+	let parsetree = RiosParser::parse(Rule::Program, &code).unwrap().next().unwrap();
 	println!("Result of parsing file: {:#?}", parsetree);
 	let ast = buildAST(&parsetree);
 	println!("Result of building AST: {:#?}", ast);
@@ -56,7 +56,17 @@ enum AST
 	Con { t: Type }
 }
 
-fn buildAST(parsetree : &pest::iterators::Pairs<'_, Rule>) -> AST
+fn buildAST(pair : &pest::iterators::Pair<Rule>) -> i64//AST
 {
-	return AST::Con { t : Type::Int16 };
+	let mut i = 0i64;
+	match pair.as_rule()
+	{
+		Rule::Con => { i += 1 }
+		_ =>
+		{
+			i += buildAST(&pair.into_inner().next().unwrap());
+		}
+	}
+	return i;
+	//return AST::Con { t : Type::Int16 };
 }
