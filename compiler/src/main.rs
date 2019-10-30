@@ -10,15 +10,6 @@ pub struct RiosParser;
 
 use std::fs;
 
-fn main() 
-{
-	let code = fs::read_to_string("fade.rios").expect("Cannot read file");
-	let parsetree = RiosParser::parse(Rule::Program, &code).unwrap().next().unwrap();
-	println!("Result of parsing file: {:#?}", parsetree);
-	let ast = buildAST(&parsetree);
-	println!("Result of building AST: {:#?}", ast);
-}
-
 #[derive(Debug)]
 enum Operator
 {
@@ -56,7 +47,16 @@ enum AST
 	Con { t: Type }
 }
 
-fn buildAST(pair : &pest::iterators::Pair<Rule>) -> i64//AST
+fn main() 
+{
+	let code = fs::read_to_string("fade.rios").expect("Cannot read file");
+	let parsetree = RiosParser::parse(Rule::Program, &code).unwrap().next().unwrap();
+	println!("Result of parsing file: {:#?}", parsetree);
+	let ast = buildAST(parsetree);
+	println!("Result of building AST: {:#?}", ast);
+}
+
+fn buildAST(pair : pest::iterators::Pair<Rule>) -> i64//AST
 {
 	let mut i = 0i64;
 	match pair.as_rule()
@@ -64,7 +64,10 @@ fn buildAST(pair : &pest::iterators::Pair<Rule>) -> i64//AST
 		Rule::Con => { i += 1 }
 		_ =>
 		{
-			i += buildAST(&pair.into_inner().next().unwrap());
+			for inner in pair.into_inner()
+			{
+				i += buildAST(inner);
+			}
 		}
 	}
 	return i;

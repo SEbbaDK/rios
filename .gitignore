@@ -8,3 +8,4 @@ definition/*.fdb_latexmk
 compiler/Cargo.lock
 compiler/target/*
 *.rs.bk
+compiler/.idea/*
