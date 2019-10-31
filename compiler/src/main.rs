@@ -2,13 +2,13 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
+use std::fs;
+
 use pest::Parser;
 
 #[derive(Parser)]
 #[grammar = "rios.pest"]
 pub struct RiosParser;
-
-use std::fs;
 
 #[derive(Debug)]
 enum Operator
@@ -42,34 +42,34 @@ enum Type
 #[derive(Debug)]
 enum AST
 {
+	StateDec { name: &'static str, decs: Vec<AST> },
 	BinaryExpr { t: Type, a: &'static AST, b: &'static AST, op: Operator },
 	UnaryExpr { t: Type, a: &'static AST, op: Operator },
 	Con { t: Type }
 }
 
-fn main() 
+fn main()
 {
-	let code = fs::read_to_string("fade.rios").expect("Cannot read file");
-	let parsetree = RiosParser::parse(Rule::Program, &code).unwrap().next().unwrap();
+	let code = fs::read_to_string("src/fade.rios").expect("Cannot read file");
+	let parsetree = RiosParser::parse(Rule::Program, &code).expect("Parse failure");
 	println!("Result of parsing file: {:#?}", parsetree);
-	let ast = buildAST(parsetree);
+
+	let ast = build_ast(parsetree);
 	println!("Result of building AST: {:#?}", ast);
 }
 
-fn buildAST(pair : pest::iterators::Pair<Rule>) -> i64//AST
+fn build_ast(pairs: pest::iterators::Pairs<'_, Rule>) -> AST
 {
-	let mut i = 0i64;
-	match pair.as_rule()
-	{
-		Rule::Con => { i += 1 }
-		_ =>
-		{
-			for inner in pair.into_inner()
-			{
-				i += buildAST(inner);
-			}
-		}
+	let mut globaldecs: Vec<AST> = Vec::new();
+	for pair in pairs {
+		globaldecs.push(build_ast_dec(pair));
 	}
-	return i;
-	//return AST::Con { t : Type::Int16 };
+	return AST::StateDec { name: "Global", decs: globaldecs}
+}
+
+fn build_ast_dec(pair: pest::iterators::Pair<Rule>) -> AST
+{
+	match pair.as_rule() {
+		_ => AST::Con { t: Type::Char }
+	}
 }
