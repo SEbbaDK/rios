@@ -5,8 +5,8 @@ COMMENT	= _{
 }
 
 Program = _{ SOI ~ Decs ~ EOI }
-Decs = _{ Dec* }
-Dec = { 
+Decs = { Dec* }
+Dec = _{ 
 	VarDec
     | StateDec
     | ReactDec
@@ -30,8 +30,8 @@ Unit = { "µs"|"ms"|"s"|"m"|"h"|"d" }
 VarDec = { Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
 Params = { "(" ~ (Param ~ ("," ~ Param)*)? ~ ")" }
 Param = { Type ~ VarName }
-Type = { (IntType|"bool"|"float"|"pin"|"serial"|"proc"|"string"|"char") ~ "[]"? }
-IntType = { ("u"? ~ "int" ~ ("8"|"16"|"32")) }
+Type = @{ (IntType|"bool"|"float"|"pin"|"serial"|"proc"|"string"|"char") ~ "[]"? }
+IntType = { ("u"? ~ "int" ~ ("8"|"16"|"32"|"64")) }
 
 StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Decs ~ "}"  }
 
