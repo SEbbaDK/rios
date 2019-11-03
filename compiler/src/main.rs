@@ -32,8 +32,7 @@ enum Type
 	Boolean,
 	Char,	String,
 	Float,	Double,
-	Int8,	Int16,	Int32,	Int64,
-	UInt8,	UInt16,	UInt32,	UInt64,
+	Int { signed: bool, length: i8 },
 }
 
 #[derive(Debug)]
@@ -42,7 +41,7 @@ enum AST<'a>
 	State { name: &'a str, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, name: &'a str, initial: Box<AST<'a>> },
 	Reaction {  },
-	Expr { t: Type, a: &'a AST<'a>, op: Operator, b: Option<&'a AST<'a>> },
+	Expr { t: Type, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
 	Con { t: Type },
 }
 
@@ -67,34 +66,49 @@ fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
 
 fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	let mut name = "STANDARDSTATENAME";
-	let mut decs = (Vec::new(), Vec::new(), Vec::new());
+	let mut name = None;
+	let mut decs = None;
 
 	for inner in pair.into_inner() {
 		match inner.as_rule() {
-			Rule::StateName => name = inner.as_str(), //as_span().as_str()
-			Rule::Decs => decs = build_ast_decs(inner),
+			Rule::StateName => name = Some(inner.as_str()), //as_span().as_str()
+			Rule::Decs => decs = Some(build_ast_decs(inner)),
 			_ => unreachable!(),
 		}
 	}
-	let (states, vars, reactions) = decs;
+	let (states, vars, reactions) = decs.expect("No declarations returned");
 	return AST::State { name, states, reactions, vars }
 }
 
 fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	let mut name = "ERROR: No Name Specified";
-	let mut t = Type::String;
-	let mut initial = AST::Con { t: Type::String };
+	let mut name = None;
+	let mut t = None;
+	let mut initial = None;
 
 	for inner in pair.into_inner() {
 		match inner.as_rule() {
-			Rule::VarName => name = inner.as_str(),
-			Rule::Type => t = match inner.as_str().trim() {
-				"bool" => Type::Boolean,
-				_ => Type::String,
-			},
-			Rule::Expr => initial = build_ast_expr(inner),
+			Rule::VarName => name = Some(inner.as_str()),
+			Rule::Expr => initial = Some(build_ast_expr(inner)),
+			Rule::Type => t = Some(match inner.as_str().trim() {
+				"bool"  => Type::Boolean,
+				"float" => Type::Float,
+				"double"=> Type::Double,
+				"pin"   => Type::Pin,
+				"serial"=>Type::Serial,
+				"proc"  => Type::Proc,
+				"string"=>Type::String,
+				"char"  => Type::Char,
+				"uint8" => Type::Int {signed: false, length: 8},
+				"uint16"=> Type::Int {signed: false, length: 16},
+				"uint32"=> Type::Int {signed: false, length: 32},
+				"uint64"=> Type::Int {signed: false, length: 64},
+				"int8"  => Type::Int {signed: true, length: 8},
+				"int16" => Type::Int {signed: true, length: 16},
+				"int32" => Type::Int {signed: true, length: 32},
+				"int64" => Type::Int {signed: true, length: 64},
+				_ => unreachable!(),
+			}),
 			_ => unreachable!(),
 		}
 	}
@@ -108,7 +122,7 @@ fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> AST
 
 fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	AST::Expr { t: Type::String, a: &AST::Con { t: Type::String }, op: Operator::BoolOr, b: None }
+	AST::Expr { t: Type::String, a: Box::new(AST::Con { t: Type::String }), op: Operator::BoolOr, b: None }
 }
 //fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 
