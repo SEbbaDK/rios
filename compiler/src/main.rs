@@ -66,52 +66,38 @@ fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
 
 fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	let mut name = None;
-	let mut decs = None;
-
-	for inner in pair.into_inner() {
-		match inner.as_rule() {
-			Rule::StateName => name = Some(inner.as_str()), //as_span().as_str()
-			Rule::Decs => decs = Some(build_ast_decs(inner)),
-			_ => unreachable!(),
-		}
-	}
-	let (states, vars, reactions) = decs.expect("No declarations returned");
+	let mut iter = pair.into_inner().into_iter();
+	let name = iter.next().unwrap().as_str();
+	let decs = build_ast_decs(iter.next().unwrap());
+	let (states, reactions, vars) = decs;
 	return AST::State { name, states, reactions, vars }
 }
 
 fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	let mut name = None;
-	let mut t = None;
-	let mut initial = None;
+	let mut iter = pair.into_inner().into_iter();
+	let t: Type = match iter.next().unwrap().as_str().trim() {
+		"bool"  => Type::Boolean,
+		"float" => Type::Float,
+		"double"=> Type::Double,
+		"pin"   => Type::Pin,
+		"serial"=> Type::Serial,
+		"proc"  => Type::Proc,
+		"string"=> Type::String,
+		"char"  => Type::Char,
+		"uint8" => Type::Int {signed: false, length: 8},
+		"uint16"=> Type::Int {signed: false, length: 16},
+		"uint32"=> Type::Int {signed: false, length: 32},
+		"uint64"=> Type::Int {signed: false, length: 64},
+		"int8"  => Type::Int {signed: true, length: 8},
+		"int16" => Type::Int {signed: true, length: 16},
+		"int32" => Type::Int {signed: true, length: 32},
+		"int64" => Type::Int {signed: true, length: 64},
+		_ => unreachable!(),
+	};
+	let name = iter.next().unwrap().as_str();
+	let initial = build_ast_expr(iter.next().unwrap());
 
-	for inner in pair.into_inner() {
-		match inner.as_rule() {
-			Rule::VarName => name = Some(inner.as_str()),
-			Rule::Expr => initial = Some(build_ast_expr(inner)),
-			Rule::Type => t = Some(match inner.as_str().trim() {
-				"bool"  => Type::Boolean,
-				"float" => Type::Float,
-				"double"=> Type::Double,
-				"pin"   => Type::Pin,
-				"serial"=>Type::Serial,
-				"proc"  => Type::Proc,
-				"string"=>Type::String,
-				"char"  => Type::Char,
-				"uint8" => Type::Int {signed: false, length: 8},
-				"uint16"=> Type::Int {signed: false, length: 16},
-				"uint32"=> Type::Int {signed: false, length: 32},
-				"uint64"=> Type::Int {signed: false, length: 64},
-				"int8"  => Type::Int {signed: true, length: 8},
-				"int16" => Type::Int {signed: true, length: 16},
-				"int32" => Type::Int {signed: true, length: 32},
-				"int64" => Type::Int {signed: true, length: 64},
-				_ => unreachable!(),
-			}),
-			_ => unreachable!(),
-		}
-	}
 	AST::Variable { t, name, initial: Box::new(initial) }
 }
 
@@ -122,10 +108,87 @@ fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> AST
 
 fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 {
+	match pair.as_rule() {
+		Rule::Expr => build_ast_expr(pair.into_inner().into_iter().next().unwrap()),
+		Rule::ExprBOr | Rule::ExprBAnd | Rule::ExprBXor |
+		Rule::ExprComp | Rule::ExprMult | Rule::ExprAdd => {
+			let mut iter = pair.into_inner().into_iter();
+			let a = build_ast_expr(iter.next().unwrap());
+			if iter.peek().is_none(){
+				a
+			}
+			else {
+				let op = build_ast_operator(iter.next().unwrap());
+				let b = build_ast_expr(iter.next().unwrap());
+				AST::Expr { t: None, a: Box::new(a), op, b: Some(Box::new(b))}
+			}
+		},
+		Rule::ExprNeg | Rule::ExprOld | Rule::ExprDeref => {
+			let mut iter = pair.into_inner().into_iter();
+			let op = build_ast_operator(iter.next().unwrap());
+			let expr = build_ast_expr(iter.next().unwrap());
+			AST::Expr { t:None, a: Box::new(expr), op, b: None }
+		},
+		Rule::ExprSub | Rule::ExprCall => {
+
+		},
+		Rule::ExprParen => {
+			let inner = pair.into_inner().into_iter().next().unwrap();
+			match inner.as_rule() {
+				Rule::Expr => build_ast_expr(inner),
+				Rule::Con => build_ast_con(inner),
+				_ => unreachable!(),
+			}
+		}
+	}
 	AST::Expr { t: Type::String, a: Box::new(AST::Con { t: Type::String }), op: Operator::BoolOr, b: None }
 }
-//fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 
+fn build_ast_operator(pair: pest::iterators::Pair<Rule>) -> Operator
+{
+	match pair.as_rule() {
+		Rule::AritOp | Rule::BitOp | Rule::BoolOp | Rule::CompOp | Rule::ChangeOp
+		=> build_ast_operator(pair.into_inner().into_iter().next().unwrap()),
+		Rule::AritAddOp	=> Operator::AritAdd,
+		Rule::AritSubOp	=> Operator::AritSub,
+		Rule::AritMultOp=> Operator::AritMult,
+		Rule::AritModOp	=> Operator::AritMod,
+		Rule::AritDivOp	=> Operator::AritDiv,
+
+		Rule::AritNegOp	=> Operator::AritNeg,
+		Rule::AritPosOp	=> Operator::AritPos,
+
+		Rule::BitNegOp	=> Operator::BitNeg,
+		Rule::BitAndOp	=> Operator::BitAnd,
+		Rule::BitOrOp	=> Operator::BitOr,
+		Rule::BitXorOp	=> Operator::BitXor,
+		Rule::BitShiftRightOp=> Operator::BitShiftRight,
+		Rule::BitShiftLeftOp=> Operator::BitShiftLeft,
+
+		Rule::BoolOrOp	=> Operator::BoolOr,
+		Rule::BoolAndOp	=> Operator::BoolAnd,
+		Rule::BoolXorOp	=> Operator::BoolXor,
+		Rule::BoolNegOp => Operator::BoolNeg,
+
+		Rule::CompEOp	=> Operator::CompE,
+		Rule::CompNEOp	=> Operator::CompNE,
+		Rule::CompLEOp	=> Operator::CompLE,
+		Rule::CompGEOp	=> Operator::CompGE,
+		Rule::CompLOp	=> Operator::CompL,
+		Rule::CompGOp	=> Operator::CompG,
+		Rule::ChangedOp	=> Operator::Changed,
+		Rule::NotChangedOp=> Operator::NotChanged,
+		Rule::OldOp	    => Operator::Old,
+		Rule::DerefOp	=> Operator::Deref,
+	}
+}
+
+fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
+{
+
+}
+
+//fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 
 fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec<AST>)
 {

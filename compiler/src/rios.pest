@@ -53,8 +53,9 @@ ExprBOr = { ExprBAnd ~ ( BoolOrOp ~ Expr)? }
 ExprBAnd = { ExprBXor ~ ( BoolAndOp ~ Expr)? }
 ExprBXor = { ExprComp ~ ( BoolXorOp ~ Expr)? }
 ExprComp = { ExprMult ~ ( (CompOp|ChangeOp) ~ Expr)? }
-ExprMult = { ExprAdd ~ ( (AritMultOp|BitAndOp|BitXorOp) ~ Expr)? }
-ExprAdd = { ExprNeg ~ ( (AritAddOp|BitOrOp) ~ Expr)? }
+ExprMult = { ExprAdd ~ ( (AritMultOp|AritModOp|AritDivOp|BitAndOp|BitXorOp) ~ Expr)? }
+ExprAdd = { ExprShift ~ ( (AritAddOp|AritSubOp|BitOrOp) ~ Expr)? }
+ExprShift={ ExprNeg ~ ( (BitShiftLeftOp|BitShiftRightOp) ~ Expr)? }
 ExprNeg = { (BoolNegOp|BitNegOp|AritNegOp)? ~ ExprOld }
 ExprOld = { (OldOp)? ~ ExprSub }
 ExprSub = { ExprCall ~ ( "." ~ Expr)? }
@@ -100,17 +101,23 @@ Uppercase	= @{ 'A'..'Z' | 'À'..'ß' }
 VarName		= @{ Lowercase ~ Letter* }
 StateName	= @{ Uppercase ~ Letter* }
 
-AritOp = { AritAddOp|AritMultOp }
-AritAddOp 	= { "+" | "-" }
-AritMultOp	= { "*" | "%" | "/" }
-AritNegOp	= { "-" | "+" }
+AritOp = { AritAddOp|AritSubOp|AritMultOp|AritModOp|AritDivOp }
+AritAddOp 	= { "+" }
+AritSubOp   = { "-" }
+AritMultOp	= { "*" }
+AritModOp   = { "%" }
+AritDivOp   = { "/" }
 
-BitOp = { BitNegOp|BitAndOp|BitOrOp|BitXorOp|BitShiftOp }
+AritNegOp	= { "-" }
+AritPosOp   = { "+" }
+
+BitOp = { BitNegOp|BitAndOp|BitOrOp|BitXorOp|BitShiftRightOp|BitShiftLeftOp }
 BitNegOp	= { "~" }
 BitAndOp	= { "&" ~ !"&" }
 BitOrOp		= { "|" ~ !"|" }
 BitXorOp	= { "^" ~ !"^" }
-BitShiftOp	= { ">>" | "<<" }
+BitShiftRightOp	= { ">>" }
+BitShiftLeftOp	= { "<<" }
 
 BoolOp	= { BoolOrOp|BoolAndOp|BoolXorOp|BoolNegOp }
 BoolOrOp	= { "||" }
@@ -118,7 +125,15 @@ BoolAndOp	= { "&&" }
 BoolXorOp	= { "^^" }
 BoolNegOp	= { "!" }
 
-CompOp	= { ("<"|">") ~ "="? | ("="|"!") ~ "=" }
-ChangeOp= { "->"|"!>" }
+CompOp  = { CompEqualsOp|CompNotEqualsOp|CompLessEqualsOp|CompGreatEquals|CompLessOp|CompGreatOp }
+CompEOp = { "==" }
+CompNEOp= { "!=" }
+CompLEOp= { "<=" }
+CompGEOp= { ">=" }
+CompLOp = { "<" }
+CompGOp = { ">" }
+ChangeOp= { ChangedOp|NotChangedOp }
+ChangedOp={ "->" }
+NotChangedOp= { "!>" }
 OldOp	= { "§" }
 DerefOp	= { "*" }
