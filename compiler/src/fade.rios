@@ -3,7 +3,7 @@ int8 brightness = 0
 int8 fadeAmount = 5
 
 every 30 ms : [
-  run led.write(brightness);
+  *led = brightness;
   brightness += fadeAmount;
 ]
 

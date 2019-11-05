@@ -12,16 +12,20 @@ Dec = _{
     | ReactDec
     | StructDec
 }
-ReactDec = { 
-    ("onenter"|"always") ~ Result
-    | "when" ~ Expr ~ WhenCont
-    | ("every"|"after") ~ Expr ~ Unit ~ Result
+ReactDec = {
+    ReactOnenter
+    | ReactAlways
+    | ReactEvery
+    | ReactAfter
+    | ReactWhen
 }
-WhenCont = { 
-    WhenOps? ~ Cases
-    | Result
-}
-Cases = { Case ~ (Cases)* }
+ReactOnenter= { "onenter" ~ Result }
+ReactAlways = { "always" ~ Result }
+ReactEvery  = { "every" ~ TimedReact }
+ReactAfter  = { "after" ~ TimedReact }
+TimedReact  = _{ Expr ~ Unit ~ Result }
+ReactWhen   = { "when" ~ Expr ~ (WhenOps? ~ Cases | Result) }
+Cases = _{ Case ~ (Cases)* }
 Case = { "|" ~ WhenOps? ~ Expr ~ Result }
 WhenOps = { CompOp|BoolOp|ChangeOp }
 Result = { ":" ~ Stmts }

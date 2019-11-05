@@ -40,7 +40,7 @@ enum AST<'a>
 {
 	State { name: &'a str, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, name: &'a str, initial: Box<AST<'a>> },
-	Reaction {  },
+	Reaction { /*expr: Box<AST<'a>>, stmts: Box<AST<'a>>*/ },
 	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
@@ -104,6 +104,7 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 
 fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> AST
 {
+	//println!("Reaction:\n{:#?}", pair);
 	AST::Reaction {  }
 }
 
@@ -111,34 +112,17 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 {
 	match pair.as_rule() {
 		Rule::Expr => build_ast_expr(pair.into_inner().into_iter().next().unwrap()),
-		Rule::ExprBOr | Rule::ExprBAnd | Rule::ExprBXor |
-		Rule::ExprComp | Rule::ExprMult | Rule::ExprAdd => {
-			let mut iter = pair.into_inner().into_iter();
-			let a = build_ast_expr(iter.next().unwrap());
-			if iter.peek().is_none(){
-				a
-			}
-			else {
-				let op = build_ast_operator(iter.next().unwrap());
-				let b = build_ast_expr(iter.next().unwrap());
-				AST::Expr { t: None, a: Box::new(a), op, b: Some(Box::new(b))}
-			}
-		},
-		Rule::ExprNeg | Rule::ExprOld | Rule::ExprDeref => {
-			let mut iter = pair.into_inner().into_iter();
-			let op = build_ast_operator(iter.next().unwrap());
-			let expr = build_ast_expr(iter.next().unwrap());
-			AST::Expr { t:None, a: Box::new(expr), op, b: None }
-		},
-		Rule::ExprCall => {
-			let mut iter = pair.into_inner().into_iter();
-			let expr = Box::new(build_ast_expr(iter.next().unwrap()));
-			let mut parameters = Vec::new();
-			for inner in iter {
-				parameters.push(build_ast_expr(inner));
-			}
-			AST::Call { expr, parameters }
-		},
+		Rule::ExprBOr |
+		Rule::ExprBAnd |
+		Rule::ExprBXor |
+		Rule::ExprShift |
+		Rule::ExprComp |
+		Rule::ExprMult |
+		Rule::ExprAdd => build_ast_binary_expr(pair),
+		Rule::ExprNeg |
+		Rule::ExprOld |
+		Rule::ExprDeref => build_ast_unary_expr(pair),
+		Rule::ExprCall => build_ast_call_expr(pair),
 		Rule::ExprParen => {
 			let inner = pair.into_inner().into_iter().next().unwrap();
 			match inner.as_rule() {
@@ -148,6 +132,52 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 			}
 		}
 		_ => unreachable!()
+	}
+}
+
+fn build_ast_binary_expr(pair: pest::iterators::Pair<Rule>) -> AST
+{
+	let mut iter = pair.into_inner().into_iter();
+	let a = build_ast_expr(iter.next().unwrap());
+	if iter.peek().is_none(){
+		a
+	}
+	else {
+		let op = build_ast_operator(iter.next().unwrap());
+		let b = build_ast_expr(iter.next().unwrap());
+		AST::Expr { t: None, a: Box::new(a), op, b: Some(Box::new(b))}
+	}
+}
+
+fn build_ast_unary_expr(pair: pest::iterators::Pair<Rule>) -> AST
+{
+	let mut iter = pair.into_inner().into_iter();
+	match iter.peek().unwrap().as_rule() {
+		Rule::BoolNegOp | Rule::BitNegOp | Rule::AritNegOp |
+		Rule::OldOp | Rule::DerefOp => {
+			let op = build_ast_operator(iter.next().unwrap());
+			let expr = build_ast_expr(iter.next().unwrap());
+			AST::Expr { t:None, a: Box::new(expr), op, b: None }
+		}
+		_ => {
+			build_ast_expr(iter.next().unwrap())
+		}
+	}
+}
+
+fn build_ast_call_expr(pair: pest::iterators::Pair<Rule>) -> AST
+{
+	let mut iter = pair.into_inner().into_iter();
+	let expr = build_ast_expr(iter.next().unwrap());
+	if iter.peek().is_none() {
+		expr
+	}
+	else {
+		let mut parameters = Vec::new();
+		for inner in iter {
+			parameters.push(build_ast_expr(inner));
+		}
+		AST::Call { expr: Box::new(expr), parameters }
 	}
 }
 
@@ -187,16 +217,27 @@ fn build_ast_operator(pair: pest::iterators::Pair<Rule>) -> Operator
 		Rule::NotChangedOp=> Operator::NotChanged,
 		Rule::OldOp	    => Operator::Old,
 		Rule::DerefOp	=> Operator::Deref,
-		_ => unreachable!()
+		_ => { println!("{:#?}", pair); unreachable!() }
 	}
 }
 
 fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	AST::Con { t: Type::String }
+	let con = pair.into_inner().into_iter().next().unwrap();
+	match con.as_rule() {
+		BinCon => {
+			let mut chars = con.as_str().chars();
+			chars.skip(2);
+			let mut value : u32 = 0;
+			for c in chars {
+				value = value << 1;
+				value = value & str::parse::<int>(c);
+			}
+			AST::Con { t: Type::u32,  }
+		}
+		_ => AST::Con { t: Type::String }
+	}
 }
-
-//fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 
 fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec<AST>)
 {
