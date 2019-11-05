@@ -57,8 +57,8 @@ ExprMult = { ExprAdd ~ ( (AritMultOp|AritModOp|AritDivOp|BitAndOp|BitXorOp) ~ Ex
 ExprAdd = { ExprShift ~ ( (AritAddOp|AritSubOp|BitOrOp) ~ Expr)? }
 ExprShift={ ExprNeg ~ ( (BitShiftLeftOp|BitShiftRightOp) ~ Expr)? }
 ExprNeg = { (BoolNegOp|BitNegOp|AritNegOp)? ~ ExprOld }
-ExprOld = { (OldOp)? ~ ExprSub }
-ExprSub = { ExprCall ~ ( "." ~ Expr)? }
+ExprOld = { (OldOp)? ~ ExprCall }
+//ExprSub = { ExprCall ~ ( "." ~ Expr)? }
 ExprCall = { ExprDeref  ~ ("(" ~ (Expr  ~ ("," ~ Expr)*)? ~ ")")? }
 ExprDeref = { DerefOp? ~ ExprParen }
 ExprParen = { 
@@ -125,7 +125,7 @@ BoolAndOp	= { "&&" }
 BoolXorOp	= { "^^" }
 BoolNegOp	= { "!" }
 
-CompOp  = { CompEqualsOp|CompNotEqualsOp|CompLessEqualsOp|CompGreatEquals|CompLessOp|CompGreatOp }
+CompOp  = { CompEOp|CompNEOp|CompLEOp|CompGEOp|CompLOp|CompGOp }
 CompEOp = { "==" }
 CompNEOp= { "!=" }
 CompLEOp= { "<=" }

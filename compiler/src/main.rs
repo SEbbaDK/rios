@@ -17,7 +17,7 @@ enum Operator
 	BitAnd, BitOr, BitXor, BitShiftLeft, BitShiftRight, BitNeg,
 	BoolOr,	BoolAnd, BoolXor, BoolNeg,
 	CompEquals, CompNotEquals, CompLessEquals, CompGreatEquals, CompLess, CompGreat,
-	Change, ChangeNot,
+	Changed, NotChanged,
 	Old,
 	Deref,
 }
@@ -41,7 +41,8 @@ enum AST<'a>
 	State { name: &'a str, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, name: &'a str, initial: Box<AST<'a>> },
 	Reaction {  },
-	Expr { t: Type, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
+	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
+	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
 }
 
@@ -129,8 +130,14 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 			let expr = build_ast_expr(iter.next().unwrap());
 			AST::Expr { t:None, a: Box::new(expr), op, b: None }
 		},
-		Rule::ExprSub | Rule::ExprCall => {
-
+		Rule::ExprCall => {
+			let mut iter = pair.into_inner().into_iter();
+			let expr = Box::new(build_ast_expr(iter.next().unwrap()));
+			let mut parameters = Vec::new();
+			for inner in iter {
+				parameters.push(build_ast_expr(inner));
+			}
+			AST::Call { expr, parameters }
 		},
 		Rule::ExprParen => {
 			let inner = pair.into_inner().into_iter().next().unwrap();
@@ -140,8 +147,8 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 				_ => unreachable!(),
 			}
 		}
+		_ => unreachable!()
 	}
-	AST::Expr { t: Type::String, a: Box::new(AST::Con { t: Type::String }), op: Operator::BoolOr, b: None }
 }
 
 fn build_ast_operator(pair: pest::iterators::Pair<Rule>) -> Operator
@@ -170,22 +177,23 @@ fn build_ast_operator(pair: pest::iterators::Pair<Rule>) -> Operator
 		Rule::BoolXorOp	=> Operator::BoolXor,
 		Rule::BoolNegOp => Operator::BoolNeg,
 
-		Rule::CompEOp	=> Operator::CompE,
-		Rule::CompNEOp	=> Operator::CompNE,
-		Rule::CompLEOp	=> Operator::CompLE,
-		Rule::CompGEOp	=> Operator::CompGE,
-		Rule::CompLOp	=> Operator::CompL,
-		Rule::CompGOp	=> Operator::CompG,
+		Rule::CompEOp	=> Operator::CompEquals,
+		Rule::CompNEOp	=> Operator::CompNotEquals,
+		Rule::CompLEOp	=> Operator::CompLessEquals,
+		Rule::CompGEOp	=> Operator::CompGreatEquals,
+		Rule::CompLOp	=> Operator::CompLess,
+		Rule::CompGOp	=> Operator::CompGreat,
 		Rule::ChangedOp	=> Operator::Changed,
 		Rule::NotChangedOp=> Operator::NotChanged,
 		Rule::OldOp	    => Operator::Old,
 		Rule::DerefOp	=> Operator::Deref,
+		_ => unreachable!()
 	}
 }
 
 fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 {
-
+	AST::Con { t: Type::String }
 }
 
 //fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
