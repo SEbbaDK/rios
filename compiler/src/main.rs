@@ -225,16 +225,17 @@ fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 {
 	let con = pair.into_inner().into_iter().next().unwrap();
 	match con.as_rule() {
-		BinCon => {
-			let mut chars = con.as_str().chars();
-			chars.skip(2);
+		Rule::BinCon => {
+			println!("{}", con.as_str());
+			println!("{:#?}", con);
+			let mut chars = con.as_str().chars().skip(2);
 			let mut value : u32 = 0;
 			for c in chars {
 				value = value << 1;
-				value = value & str::parse::<int>(c);
+				value = value & char2num(c);
 			}
-			AST::Con { t: Type::u32,  }
-		}
+			AST::Con { t: Type::Int{ signed: false, length: 32 } }
+		},
 		_ => AST::Con { t: Type::String }
 	}
 }
@@ -253,4 +254,21 @@ fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec
 		}
 	}
 	return (states, vars, reactions);
+}
+
+fn char2num(c: char) -> u32
+{
+	match c {
+		'0' => 0,
+		'1' => 1,
+		'2' => 2,
+		'3' => 3,
+		'4' => 4,
+		'5' => 5,
+		'6' => 6,
+		'7' => 7,
+		'8' => 8,
+		'9' => 9,
+		 _  => panic!("char2num: \"{}\" is not a number!", c)
+	}
 }
