@@ -226,17 +226,55 @@ fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 	let con = pair.into_inner().into_iter().next().unwrap();
 	match con.as_rule() {
 		Rule::BinCon => {
-			println!("{}", con.as_str());
-			println!("{:#?}", con);
-			let mut chars = con.as_str().chars().skip(2);
-			let mut value : u32 = 0;
-			for c in chars {
-				value = value << 1;
-				value = value & char2num(c);
-			}
+			let chars = con.as_str().chars().skip(2);
+			let value = parse_chars_in_base(2, chars);
 			AST::Con { t: Type::Int{ signed: false, length: 32 } }
 		},
+		Rule::OctCon => {
+			let chars = con.as_str().chars().skip(2);
+			let value = parse_chars_in_base(8, chars);
+			AST::Con { t: Type::Int { signed: false, length: 32 } }
+		},
+		Rule::HexCon => {
+			let chars = con.as_str().chars().skip(2);
+			let value = parse_chars_in_base(16, chars);
+			AST::Con { t: Type::Int { signed: false, length: 32 } }
+		}
 		_ => AST::Con { t: Type::String }
+	}
+}
+
+fn parse_chars_in_base<I>(base: u32, chars: I ) -> u32
+	where I: Iterator<Item=char>
+{
+	let mut value : u32 = 0;
+	for c in chars {
+		value = value * base;
+		value = value & char_to_num(c);
+	}
+	value
+}
+
+fn char_to_num(c: char) -> u32
+{
+	match c {
+		'0' => 0,
+		'1' => 1,
+		'2' => 2,
+		'3' => 3,
+		'4' => 4,
+		'5' => 5,
+		'6' => 6,
+		'7' => 7,
+		'8' => 8,
+		'9' => 9,
+		'A'|'a' => 10,
+		'B'|'b' => 11,
+		'C'|'c' => 12,
+		'D'|'d' => 13,
+		'E'|'e' => 14,
+		'F'|'f' => 15,
+		_  => panic!("char2num: \"{}\" is not a number!", c)
 	}
 }
 
@@ -254,21 +292,4 @@ fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec
 		}
 	}
 	return (states, vars, reactions);
-}
-
-fn char2num(c: char) -> u32
-{
-	match c {
-		'0' => 0,
-		'1' => 1,
-		'2' => 2,
-		'3' => 3,
-		'4' => 4,
-		'5' => 5,
-		'6' => 6,
-		'7' => 7,
-		'8' => 8,
-		'9' => 9,
-		 _  => panic!("char2num: \"{}\" is not a number!", c)
-	}
 }
