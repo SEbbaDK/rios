@@ -31,7 +31,8 @@ WhenOps = { CompOp|BoolOp|ChangeOp }
 Result = { ":" ~ Stmts }
 Unit = { "µs"|"ms"|"s"|"m"|"h"|"d" }
 
-VarDec = { Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
+VarDec = { Mutable? ~ Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
+Mutable = { "mut" }
 Params = { "(" ~ (Param ~ ("," ~ Param)*)? ~ ")" }
 Param = { Type ~ VarName }
 Type = @{ (IntType|"bool"|"float"|"double"|"pin"|"serial"|"proc"|"string"|"char") ~ "[]"? }

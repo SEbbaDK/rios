@@ -39,7 +39,7 @@ enum Type
 enum AST<'a>
 {
 	State { name: &'a str, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
-	Variable { t: Type, name: &'a str, initial: Box<AST<'a>> },
+	Variable { t: Type, mutable: bool, name: &'a str, initial: Box<AST<'a>> },
 	Reaction { /*expr: Box<AST<'a>>, stmts: Box<AST<'a>>*/ },
 	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
@@ -70,13 +70,35 @@ fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
 	let mut iter = pair.into_inner().into_iter();
 	let name = iter.next().unwrap().as_str();
 	let decs = build_ast_decs(iter.next().unwrap());
-	let (states, reactions, vars) = decs;
+	let (states, vars, reactions) = decs;
 	return AST::State { name, states, reactions, vars }
+}
+
+fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec<AST>)
+{
+	let mut states = Vec::new();
+	let mut vars = Vec::new();
+	let mut reactions = Vec::new();
+	for inner in pair.into_inner() {
+		match inner.as_rule() {
+			Rule::ReactDec => reactions.push(build_ast_reaction(inner)),
+			Rule::VarDec => vars.push(build_ast_var(inner)),
+			Rule::StateDec => states.push(build_ast_state(inner)),
+			_ => unreachable!()
+		}
+	}
+	return (states, vars, reactions);
 }
 
 fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 {
 	let mut iter = pair.into_inner().into_iter();
+
+	let mutable = if iter.peek().unwrap().as_rule() == Rule::Mutable {
+		iter.next();
+		true
+	} else { false };
+
 	let t: Type = match iter.next().unwrap().as_str().trim() {
 		"bool"  => Type::Boolean,
 		"float" => Type::Float,
@@ -99,7 +121,7 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 	let name = iter.next().unwrap().as_str();
 	let initial = build_ast_expr(iter.next().unwrap());
 
-	AST::Variable { t, name, initial: Box::new(initial) }
+	AST::Variable { t, mutable, name, initial: Box::new(initial) }
 }
 
 fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> AST
@@ -276,20 +298,4 @@ fn char_to_num(c: char) -> u32
 		'F'|'f' => 15,
 		_  => panic!("char2num: \"{}\" is not a number!", c)
 	}
-}
-
-fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec<AST>)
-{
-	let mut states = Vec::new();
-	let mut vars = Vec::new();
-	let mut reactions = Vec::new();
-	for inner in pair.into_inner() {
-		match inner.as_rule() {
-			Rule::ReactDec => reactions.push(build_ast_reaction(inner)),
-			Rule::VarDec => vars.push(build_ast_var(inner)),
-			Rule::StateDec => states.push(build_ast_state(inner)),
-			_ => unreachable!()
-		}
-	}
-	return (states, vars, reactions);
 }

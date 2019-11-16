@@ -1,6 +1,6 @@
-pin led = input@9
-int8 brightness = 0
-int8 fadeAmount = 5
+pin led = output@9
+mut int8 brightness = 0
+mut int8 fadeAmount = 5
 
 every 30 ms : [
   *led = brightness;
