@@ -1,0 +1,13 @@
+@startuml
+!include style.puml
+
+state "Super State" as Super {
+state "Brightness Rising" as Rising
+state "Brightness Falling" as Falling
+
+[*] -r-> Rising
+Rising -r-> Falling : brightness >= 255
+Falling -l-> Rising : brightness <= 0
+}
+Super : Change brightness by 5 every 30 ms
+@enduml

@@ -1,0 +1,6 @@
+skinparam dpi 200
+skinparam state {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}

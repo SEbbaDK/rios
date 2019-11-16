@@ -1,0 +1,12 @@
+@startuml
+!include style.puml
+
+state "Brightness Rising" as Rising
+state "Brightness Falling" as Falling
+Rising : Increment brightness by 5 every 30 ms
+Falling : Decrement brightness by 5 every 30 ms
+
+[*] -r-> Rising
+Rising -r-> Falling : brightness >= 255
+Falling -l-> Rising : brightness <= 0
+@enduml
