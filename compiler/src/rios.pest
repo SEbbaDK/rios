@@ -4,15 +4,14 @@ COMMENT	= _{
 	| ("#"|"//") ~ (!"\n" ~ ANY)* ~ "\n"
 }
 
-Program = _{ SOI ~ Decs ~ EOI }
-Decs = { Dec* }
+Program = _{ SOI ~ Dec* ~ EOI }
 Dec = _{ 
 	VarDec
     | StateDec
     | ReactDec
     | StructDec
 }
-ReactDec = {
+ReactDec = _{
     ReactOnenter
     | ReactAlways
     | ReactEvery
@@ -35,10 +34,10 @@ VarDec = { Mutable? ~ Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
 Mutable = { "mut" }
 Params = { "(" ~ (Param ~ ("," ~ Param)*)? ~ ")" }
 Param = { Type ~ VarName }
-Type = @{ (IntType|"bool"|"float"|"double"|"pin"|"serial"|"proc"|"string"|"char") ~ "[]"? }
+Type = @{ (IntType|"bool"|"float"|"double"|"pin"|"serial"|"proc"|"string"|"char"|"time") ~ "[]"? }
 IntType = { ("u"? ~ "int" ~ ("8"|"16"|"32"|"64")) }
 
-StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Decs ~ "}"  }
+StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Dec* ~ "}"  }
 
 StructDec = { "struct" ~ VarName ~ "{" ~ VarDec* ~ "}" }
 

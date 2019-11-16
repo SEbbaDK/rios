@@ -31,6 +31,7 @@ enum Type
 	Array(Box<Type>),
 	Boolean,
 	Char,	String,
+	Time,
 	Float,	Double,
 	Int { signed: bool, length: i8 },
 }
@@ -38,9 +39,9 @@ enum Type
 #[derive(Debug)]
 enum AST<'a>
 {
-	State { name: &'a str, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
+	State { name: &'a str, onenter: Option<Box<AST<'a>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, mutable: bool, name: &'a str, initial: Box<AST<'a>> },
-	Reaction { /*expr: Box<AST<'a>>, stmts: Box<AST<'a>>*/ },
+	Reaction { expr: Box<Option<AST<'a>>>, stmts: Box<AST<'a>> },
 	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
@@ -59,10 +60,11 @@ fn main()
 fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
 {
 	let name = "Global";
-	let (states, vars, reactions) = build_ast_decs(pairs.next().unwrap());
-	return AST::State { name, states, vars, reactions };
+	let test = pest::iterators::Pair();
+	let decs = build_ast_decs(pairs.next().unwrap());
+	let (onenter, states, vars, reactions) = decs;
 
-	//let globalnode = pest::iterators::Pair {  };
+	AST::State { name, onenter, states, vars, reactions }
 }
 
 fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
@@ -70,24 +72,29 @@ fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
 	let mut iter = pair.into_inner().into_iter();
 	let name = iter.next().unwrap().as_str();
 	let decs = build_ast_decs(iter.next().unwrap());
-	let (states, vars, reactions) = decs;
-	return AST::State { name, states, reactions, vars }
+	let (onenter, states, vars, reactions) = decs;
+
+	AST::State { name, onenter, states, vars, reactions }
 }
 
-fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST>, Vec<AST>, Vec<AST>)
+fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST::Stmt>, Vec<AST>, Vec<AST>, Vec<AST>)
 {
+	let mut onenter = None;
 	let mut states = Vec::new();
 	let mut vars = Vec::new();
 	let mut reactions = Vec::new();
 	for inner in pair.into_inner() {
 		match inner.as_rule() {
-			Rule::ReactDec => reactions.push(build_ast_reaction(inner)),
+			Rule::ReactOnenter => Some(build_ast_stmts(inner.into_inner().next().unwrap())),
+			Rule::ReactAlways | Rule::ReactEvery | Rule::ReactAfter
+			=> reactions.append(build_ast_reaction(inner)),
 			Rule::VarDec => vars.push(build_ast_var(inner)),
 			Rule::StateDec => states.push(build_ast_state(inner)),
 			_ => unreachable!()
 		}
 	}
-	return (states, vars, reactions);
+
+	(onenter, states, vars, reactions)
 }
 
 fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
@@ -108,6 +115,7 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 		"proc"  => Type::Proc,
 		"string"=> Type::String,
 		"char"  => Type::Char,
+		"time"  => Type::Time,
 		"uint8" => Type::Int {signed: false, length: 8},
 		"uint16"=> Type::Int {signed: false, length: 16},
 		"uint32"=> Type::Int {signed: false, length: 32},
@@ -124,10 +132,18 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 	AST::Variable { t, mutable, name, initial: Box::new(initial) }
 }
 
-fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> AST
+fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> AST
 {
-	//println!("Reaction:\n{:#?}", pair);
-	AST::Reaction {  }
+	unimplemented!();
+}
+
+fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
+{
+	let reaction = pair.into_inner().next().unwrap();
+	match reaction.as_rule() {
+		Rule::ReactAlways => AST::Reaction { expr: None, stmts: build_ast_stmts(reaction.into_inner().next().unwrap() },
+		Rule::ReactEvery => AST::Reaction {}
+	}
 }
 
 fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
