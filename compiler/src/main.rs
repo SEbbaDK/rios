@@ -39,10 +39,11 @@ enum Type
 #[derive(Debug)]
 enum AST<'a>
 {
-	State { name: &'a str, onenter: Option<Box<AST<'a>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
+	State { name: &'a str, onenter: Option<Vec<Box<AST<'a>>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, mutable: bool, name: &'a str, initial: Box<AST<'a>> },
-	Reaction { expr: Box<Option<AST<'a>>>, stmts: Box<AST<'a>> },
+	Reaction { expr: Option<Box<AST<'a>>>, stmts: Vec<Box<AST<'a>>> },
 	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
+	Stmt {},
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
 }
@@ -51,16 +52,15 @@ fn main()
 {
 	let code = fs::read_to_string("src/fade.rios").expect("Cannot read file");
 	let parsetree: pest::iterators::Pairs<Rule> = RiosParser::parse(Rule::Program, &code).expect("Parse failure");
-	println!("Result of parsing file: {:#?}", parsetree);
+	//println!("Result of parsing file: {:#?}", parsetree);
 
 	let ast = build_ast(parsetree);
-	println!("Result of building AST: {:#?}", ast);
+	//println!("Result of building AST: {:#?}", ast);
 }
 
 fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
 {
 	let name = "Global";
-	let test = pest::iterators::Pair();
 	let decs = build_ast_decs(pairs.next().unwrap());
 	let (onenter, states, vars, reactions) = decs;
 
@@ -77,7 +77,7 @@ fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
 	AST::State { name, onenter, states, vars, reactions }
 }
 
-fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST::Stmt>, Vec<AST>, Vec<AST>, Vec<AST>)
+fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Option<Vec<Box<AST>>>, Vec<AST>, Vec<AST>, Vec<AST>)
 {
 	let mut onenter = None;
 	let mut states = Vec::new();
@@ -85,12 +85,12 @@ fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Vec<AST::Stmt>, Vec<AST
 	let mut reactions = Vec::new();
 	for inner in pair.into_inner() {
 		match inner.as_rule() {
-			Rule::ReactOnenter => Some(build_ast_stmts(inner.into_inner().next().unwrap())),
+			Rule::ReactOnenter => onenter = Some(build_ast_stmts(inner.into_inner().next().unwrap())),
 			Rule::ReactAlways | Rule::ReactEvery | Rule::ReactAfter
-			=> reactions.append(build_ast_reaction(inner)),
+			=> reactions.append(&mut build_ast_reaction(inner)),
 			Rule::VarDec => vars.push(build_ast_var(inner)),
 			Rule::StateDec => states.push(build_ast_state(inner)),
-			_ => unreachable!()
+			_ => {println!("{:#?}",inner);unreachable!()}
 		}
 	}
 
@@ -132,18 +132,20 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 	AST::Variable { t, mutable, name, initial: Box::new(initial) }
 }
 
-fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> AST
+fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> Vec<Box<AST>>
 {
 	unimplemented!();
 }
 
 fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 {
-	let reaction = pair.into_inner().next().unwrap();
-	match reaction.as_rule() {
-		Rule::ReactAlways => AST::Reaction { expr: None, stmts: build_ast_stmts(reaction.into_inner().next().unwrap() },
-		Rule::ReactEvery => AST::Reaction {}
+	let mut reacts = Vec::new();
+	match pair.as_rule() {
+		Rule::ReactAlways => reacts.push(AST::Reaction { expr: None, stmts: build_ast_stmts(pair.into_inner().next().unwrap()) }),
+		//Rule::ReactEvery => AST::Reaction {}
+		_ => { println!("{:#?}", pair); unreachable!() }
 	}
+	reacts
 }
 
 fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST

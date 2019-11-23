@@ -4,7 +4,8 @@ COMMENT	= _{
 	| ("#"|"//") ~ (!"\n" ~ ANY)* ~ "\n"
 }
 
-Program = _{ SOI ~ Dec* ~ EOI }
+Program = _{ SOI ~ Decs ~ EOI }
+Decs = { Dec* }
 Dec = _{ 
 	VarDec
     | StateDec
@@ -37,7 +38,7 @@ Param = { Type ~ VarName }
 Type = @{ (IntType|"bool"|"float"|"double"|"pin"|"serial"|"proc"|"string"|"char"|"time") ~ "[]"? }
 IntType = { ("u"? ~ "int" ~ ("8"|"16"|"32"|"64")) }
 
-StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Dec* ~ "}"  }
+StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Decs ~ "}"  }
 
 StructDec = { "struct" ~ VarName ~ "{" ~ VarDec* ~ "}" }
 
