@@ -24,10 +24,10 @@ ReactAlways = { "always" ~ Result }
 ReactEvery  = { "every" ~ TimedReact }
 ReactAfter  = { "after" ~ TimedReact }
 TimedReact  = _{ Expr ~ Unit ~ Result }
-ReactWhen   = { "when" ~ Expr ~ (WhenOps? ~ Cases | Result) }
+ReactWhen   = { "when" ~ Expr ~ (WhenOp? ~ Cases | Result) }
 Cases = _{ Case ~ (Cases)* }
-Case = { "|" ~ WhenOps? ~ Expr ~ Result }
-WhenOps = { CompOp|BoolOp|ChangeOp }
+Case = { "|" ~ WhenOp? ~ Expr ~ Result }
+WhenOp = { CompOp|BoolOp|ChangeOp }
 Result = { ":" ~ Stmts }
 Unit = { "µs"|"ms"|"s"|"m"|"h"|"d" }
 
@@ -48,10 +48,13 @@ Stmts = {
 }
 Stmt = { 
 	VarDec
-    | Expr ~ ((AritOp|BitOp)? ~ "=") ~ Expr
-    | "enter" ~ StateName
-    | "run" ~ Expr
+    | Assign
+    | Enter
+    | Run
 }
+Assign = { Expr ~ ((AritOp|BitOp)? ~ "=") ~ Expr }
+Enter = { "enter" ~ Expr }
+Run = { "run" ~ Expr }
 
 Expr = { ExprBOr }
 ExprBOr = { ExprBAnd ~ ( BoolOrOp ~ Expr)? }

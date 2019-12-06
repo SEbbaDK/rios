@@ -28,6 +28,7 @@ enum Type
 	Serial,
 	Pin,
 	Proc,
+	Func { from : Option<Vec<Type>>, to : Box<Type> },
 	Array(Box<Type>),
 	Boolean,
 	Char,	String,
@@ -37,13 +38,23 @@ enum Type
 }
 
 #[derive(Debug)]
+enum Time<'a>
+{
+	Millis(Box<AST<'a>>),
+	Micros(Box<AST<'a>>),
+	None
+}
+
+#[derive(Debug)]
 enum AST<'a>
 {
-	State { name: &'a str, onenter: Option<Vec<Box<AST<'a>>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
+	State { name: &'a str, onenter: Option<Vec<AST<'a>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, mutable: bool, name: &'a str, initial: Box<AST<'a>> },
-	Reaction { expr: Option<Box<AST<'a>>>, stmts: Vec<Box<AST<'a>>> },
+	Reaction { time: Time<'a>, expr: Option<Box<AST<'a>>>, stmts: Vec<AST<'a>> },
 	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
-	Stmt {},
+	AssignStmt { target: Box<AST<'a>>, value: Box<AST<'a>> },
+	EnterStmt { state: &'a str },
+	RunStmt { expr: Box<AST<'a>> },
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
 }
@@ -55,7 +66,7 @@ fn main()
 	//println!("Result of parsing file: {:#?}", parsetree);
 
 	let ast = build_ast(parsetree);
-	//println!("Result of building AST: {:#?}", ast);
+	println!("Result of building AST: {:#?}", ast);
 }
 
 fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
@@ -77,7 +88,7 @@ fn build_ast_state(pair: pest::iterators::Pair<Rule>) -> AST
 	AST::State { name, onenter, states, vars, reactions }
 }
 
-fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Option<Vec<Box<AST>>>, Vec<AST>, Vec<AST>, Vec<AST>)
+fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Option<Vec<AST>>, Vec<AST>, Vec<AST>, Vec<AST>)
 {
 	let mut onenter = None;
 	let mut states = Vec::new();
@@ -86,11 +97,11 @@ fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Option<Vec<Box<AST>>>, 
 	for inner in pair.into_inner() {
 		match inner.as_rule() {
 			Rule::ReactOnenter => onenter = Some(build_ast_stmts(inner.into_inner().next().unwrap())),
-			Rule::ReactAlways | Rule::ReactEvery | Rule::ReactAfter
+			Rule::ReactAlways | Rule::ReactEvery | Rule::ReactAfter | Rule::ReactWhen
 			=> reactions.append(&mut build_ast_reaction(inner)),
 			Rule::VarDec => vars.push(build_ast_var(inner)),
 			Rule::StateDec => states.push(build_ast_state(inner)),
-			_ => {println!("{:#?}",inner);unreachable!()}
+			_ => { println!("{:#?}",inner);unreachable!() }
 		}
 	}
 
@@ -132,19 +143,62 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 	AST::Variable { t, mutable, name, initial: Box::new(initial) }
 }
 
-fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> Vec<Box<AST>>
+fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 {
-	unimplemented!();
+	let mut stmts = Vec::new();
+	for inner in pair.into_inner() {
+		match inner.as_rule() {
+			Rule::VarDec => stmts.push(build_ast_var(inner)),
+			Rule::Assign => {
+				let mut iter = inner.into_inner();
+				let target = box iter.next().unwrap();
+				let value = box iter.next().unwrap();
+				stmts.push(AST::AssignStmt { target, value })
+			}
+			Rule::Enter =>
+			Rule::Run =>
+		}
+	}
+	stmts
 }
 
 fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 {
 	let mut reacts = Vec::new();
+
 	match pair.as_rule() {
-		Rule::ReactAlways => reacts.push(AST::Reaction { expr: None, stmts: build_ast_stmts(pair.into_inner().next().unwrap()) }),
-		//Rule::ReactEvery => AST::Reaction {}
+		Rule::ReactAlways => reacts.push(AST::Reaction { time: Time::None, expr: None, stmts: build_ast_stmts(pair.into_inner().next().unwrap()) }),
+		Rule::ReactEvery | Rule::ReactAfter => {
+			let mut inner = pair.into_inner().into_iter();
+			let time_expr = Box::new(build_ast_expr(inner.next().unwrap()));
+			let time = if inner.next().unwrap().as_str() == "µs"
+			{ Time::Micros(time_expr) }
+			else
+			{ Time::Millis(time_expr) };
+			let stmts = build_ast_stmts(inner.next().unwrap());
+			reacts.push(AST::Reaction { time, expr: None, stmts })
+		},
+		Rule::ReactWhen => {
+			let mut inner = pair.into_inner().into_iter();
+			let common_expr = build_ast_expr(inner.next().unwrap());
+			let common_op = if(inner.peek().unwrap().as_rule() == Rule::WhenOp)
+			{ Some(build_ast_operator(inner.next().unwrap().into_inner().next().unwrap())) }
+			else
+			{ None };
+
+			match inner.peek().unwrap().as_rule() {
+				Rule::Case => {
+
+				},
+				Rule::Result => {
+
+				},
+				_ => unreachable!()
+			}
+		},
 		_ => { println!("{:#?}", pair); unreachable!() }
 	}
+
 	reacts
 }
 
