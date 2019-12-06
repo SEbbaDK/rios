@@ -1,3 +1,5 @@
+#![feature(box_syntax)]
+
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
@@ -41,8 +43,7 @@ enum Type
 enum Time<'a>
 {
 	Millis(Box<AST<'a>>),
-	Micros(Box<AST<'a>>),
-	None
+	Micros(Box<AST<'a>>)
 }
 
 #[derive(Debug)]
@@ -50,9 +51,9 @@ enum AST<'a>
 {
 	State { name: &'a str, onenter: Option<Vec<AST<'a>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, mutable: bool, name: &'a str, initial: Box<AST<'a>> },
-	Reaction { time: Time<'a>, expr: Option<Box<AST<'a>>>, stmts: Vec<AST<'a>> },
+	Reaction { time: Option<Time<'a>>, expr: Option<Box<AST<'a>>>, stmts: Vec<AST<'a>> },
 	Expr { t: Option<Type>, a: Box<AST<'a>>, op: Operator, b: Option<Box<AST<'a>>> },
-	AssignStmt { target: Box<AST<'a>>, value: Box<AST<'a>> },
+	AssignStmt { target: Box<AST<'a>>, op: Option<Operator>, value: Box<AST<'a>> },
 	EnterStmt { state: &'a str },
 	RunStmt { expr: Box<AST<'a>> },
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
@@ -151,12 +152,21 @@ fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 			Rule::VarDec => stmts.push(build_ast_var(inner)),
 			Rule::Assign => {
 				let mut iter = inner.into_inner();
-				let target = box iter.next().unwrap();
-				let value = box iter.next().unwrap();
+				let target = box build_ast_expr(iter.next().unwrap());
+				let mut operator = None;
+				if
+				let value = box build_ast_expr(iter.next().unwrap());
 				stmts.push(AST::AssignStmt { target, value })
 			}
-			Rule::Enter =>
-			Rule::Run =>
+			Rule::Enter => {
+				let state = inner.into_inner().next().unwrap().as_str();
+				stmts.push(AST::EnterStmt { state })
+			}
+			Rule::Run => {
+				let expr = box build_ast_expr(inner.into_inner().next().unwrap());
+				stmts.push(AST::RunStmt { expr })
+			},
+			_ => { print!("{:#?}", inner); unreachable!() }
 		}
 	}
 	stmts
@@ -167,21 +177,21 @@ fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 	let mut reacts = Vec::new();
 
 	match pair.as_rule() {
-		Rule::ReactAlways => reacts.push(AST::Reaction { time: Time::None, expr: None, stmts: build_ast_stmts(pair.into_inner().next().unwrap()) }),
+		Rule::ReactAlways => reacts.push(AST::Reaction { time: None, expr: None, stmts: build_ast_stmts(pair.into_inner().next().unwrap()) }),
 		Rule::ReactEvery | Rule::ReactAfter => {
 			let mut inner = pair.into_inner().into_iter();
 			let time_expr = Box::new(build_ast_expr(inner.next().unwrap()));
-			let time = if inner.next().unwrap().as_str() == "µs"
+			let time = Some(if inner.next().unwrap().as_str() == "µs"
 			{ Time::Micros(time_expr) }
 			else
-			{ Time::Millis(time_expr) };
+			{ Time::Millis(time_expr) });
 			let stmts = build_ast_stmts(inner.next().unwrap());
 			reacts.push(AST::Reaction { time, expr: None, stmts })
 		},
 		Rule::ReactWhen => {
 			let mut inner = pair.into_inner().into_iter();
 			let common_expr = build_ast_expr(inner.next().unwrap());
-			let common_op = if(inner.peek().unwrap().as_rule() == Rule::WhenOp)
+			let common_op = if inner.peek().unwrap().as_rule() == Rule::WhenOp
 			{ Some(build_ast_operator(inner.next().unwrap().into_inner().next().unwrap())) }
 			else
 			{ None };
@@ -225,7 +235,7 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 				_ => unreachable!(),
 			}
 		}
-		_ => unreachable!()
+		_ => { print!("{:#?}", pair); unreachable!() }
 	}
 }
 

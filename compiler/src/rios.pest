@@ -23,12 +23,12 @@ ReactOnenter= { "onenter" ~ Result }
 ReactAlways = { "always" ~ Result }
 ReactEvery  = { "every" ~ TimedReact }
 ReactAfter  = { "after" ~ TimedReact }
-TimedReact  = _{ Expr ~ Unit ~ Result }
+TimedReact  = _{ Expr ~ Unit ~ (Result | ReactWhen) }
 ReactWhen   = { "when" ~ Expr ~ (WhenOp? ~ Cases | Result) }
 Cases = _{ Case ~ (Cases)* }
 Case = { "|" ~ WhenOp? ~ Expr ~ Result }
 WhenOp = { CompOp|BoolOp|ChangeOp }
-Result = { ":" ~ Stmts }
+Result = _{ ":" ~ Stmts }
 Unit = { "µs"|"ms"|"s"|"m"|"h"|"d" }
 
 VarDec = { Mutable? ~ Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
@@ -46,14 +46,15 @@ Stmts = {
 	"[" ~ Stmt ~ (";" ~ Stmt?)* ~ "]"
 	| Stmt
 }
-Stmt = { 
-	VarDec
-    | Assign
-    | Enter
+Stmt = _{
+    Enter
     | Run
+    | Assign
+	| VarDec
 }
-Assign = { Expr ~ ((AritOp|BitOp)? ~ "=") ~ Expr }
-Enter = { "enter" ~ Expr }
+Assign = { Expr ~ AssignOp ~ Expr }
+AssignOp = { (AritOp|BitOp)? ~ "=" }
+Enter = { "enter" ~ StateName }
 Run = { "run" ~ Expr }
 
 Expr = { ExprBOr }
