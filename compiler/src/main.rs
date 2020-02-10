@@ -12,7 +12,7 @@ use pest::Parser;
 #[grammar = "rios.pest"]
 pub struct RiosParser;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum Operator
 {
 	AritAdd, AritSub, AritMult, AritDiv, AritMod, AritNeg, AritPos,
@@ -24,13 +24,13 @@ enum Operator
 	Deref,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Type
 {
 	Serial,
 	Pin,
 	Proc,
-	Func { from : Option<Vec<Type>>, to : Box<Type> },
+	Func { from : Vec<Type>, to : Box<Type> },
 	Array(Box<Type>),
 	Boolean,
 	Char,	String,
@@ -59,12 +59,20 @@ enum AST<'a>
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
 }
+impl<'a> Clone for AST<'a> {
+	fn clone(&self) -> Self {
+		match self {
+			AST::Expr { t, a, op, b } => AST::Expr { t: t.clone(), a: a.clone(), op: op.clone(), b: b.clone() },
+			_ => unimplemented!()
+		}
+	}
+}
 
 fn main()
 {
 	let code = fs::read_to_string("src/fade.rios").expect("Cannot read file");
 	let parsetree: pest::iterators::Pairs<Rule> = RiosParser::parse(Rule::Program, &code).expect("Parse failure");
-	//println!("Result of parsing file: {:#?}", parsetree);
+	println!("Result of parsing file: {:#?}", parsetree);
 
 	let ast = build_ast(parsetree);
 	println!("Result of building AST: {:#?}", ast);
@@ -146,30 +154,48 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 
 fn build_ast_stmts(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 {
+	debug_assert!(pair.as_rule() == Rule::Stmts);
 	let mut stmts = Vec::new();
 	for inner in pair.into_inner() {
-		match inner.as_rule() {
-			Rule::VarDec => stmts.push(build_ast_var(inner)),
-			Rule::Assign => {
-				let mut iter = inner.into_inner();
-				let target = box build_ast_expr(iter.next().unwrap());
-				let mut operator = None;
-				if
-				let value = box build_ast_expr(iter.next().unwrap());
-				stmts.push(AST::AssignStmt { target, value })
-			}
-			Rule::Enter => {
-				let state = inner.into_inner().next().unwrap().as_str();
-				stmts.push(AST::EnterStmt { state })
-			}
-			Rule::Run => {
-				let expr = box build_ast_expr(inner.into_inner().next().unwrap());
-				stmts.push(AST::RunStmt { expr })
-			},
-			_ => { print!("{:#?}", inner); unreachable!() }
-		}
+		stmts.push(build_ast_stmt(inner));
 	}
 	stmts
+}
+
+fn build_ast_stmt(pair: pest::iterators::Pair<Rule>) -> AST
+{
+	debug_assert_eq!(pair.as_rule(), Rule::Stmt);
+	let stmt = pair.into_inner().next().unwrap();
+	match stmt.as_rule() {
+		Rule::VarDec => build_ast_var(stmt),
+		Rule::Assign => {
+			let mut iter = stmt.into_inner();
+			let target = box build_ast_expr(iter.next().expect("Expected left hand side of assignment to be an expression."));
+			if iter.peek().unwrap().as_rule() != Rule::Expr {
+				let op = build_ast_operator(iter.next().unwrap());
+				let right = Some(box build_ast_expr(iter.next().unwrap()));
+				let t: Option<Type> = match &*target {
+					AST::Expr{ t, a: _, op: _, b: _} => t.clone(),
+					_ => {println!("{:#?}", *target);unreachable!()}
+				};
+				let value = box AST::Expr { t, a: Box::new(*target.clone()), op, b: right};
+				AST::AssignStmt { target, op: Some(op), value }
+			}
+			else {
+				let value = box build_ast_expr(iter.next().expect("Expected right hand side of assignment to be an expression."));
+				AST::AssignStmt { target, op: None, value }
+			}
+		}
+		Rule::Enter => {
+			let state : &str = stmt.into_inner().next().expect("Expected name of state after 'enter' statement.").as_str();
+			AST::EnterStmt { state }
+		}
+		Rule::Run => {
+			let expr = box build_ast_expr(stmt.into_inner().next().expect("Expected expr after 'run' keyword."));
+			AST::RunStmt { expr }
+		}
+		_ => { println!("{:#?}", stmt.as_rule()); println!("{:#?}", stmt.as_str()); unreachable!() }
+	}
 }
 
 fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
@@ -184,8 +210,10 @@ fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 			let time = Some(if inner.next().unwrap().as_str() == "µs"
 			{ Time::Micros(time_expr) }
 			else
-			{ Time::Millis(time_expr) });
-			let stmts = build_ast_stmts(inner.next().unwrap());
+			{ Time::Millis(time_expr) }
+			);
+			let result = inner.next().expect("Expected resulting stmts after Reaction");
+			let stmts = build_ast_stmts(result.into_inner().next().expect("Expected stmts in a result"));
 			reacts.push(AST::Reaction { time, expr: None, stmts })
 		},
 		Rule::ReactWhen => {
@@ -206,7 +234,7 @@ fn build_ast_reaction(pair: pest::iterators::Pair<Rule>) -> Vec<AST>
 				_ => unreachable!()
 			}
 		},
-		_ => { println!("{:#?}", pair); unreachable!() }
+		_ => { println!("{:#?}", pair); unimplemented!() }
 	}
 
 	reacts
@@ -234,8 +262,8 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 				Rule::Con => build_ast_con(inner),
 				_ => unreachable!(),
 			}
-		}
-		_ => { print!("{:#?}", pair); unreachable!() }
+		},
+		_ => { println!("{:#?}", pair); unreachable!() }
 	}
 }
 
@@ -328,7 +356,7 @@ fn build_ast_operator(pair: pest::iterators::Pair<Rule>) -> Operator
 fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 {
 	let con = pair.into_inner().into_iter().next().unwrap();
-	match con.as_rule() {
+	match con.as_rule() { //TODO: Fix these assumptions about signs
 		Rule::BinCon => {
 			let chars = con.as_str().chars().skip(2);
 			let value = parse_chars_in_base(2, chars);
@@ -343,8 +371,13 @@ fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 			let chars = con.as_str().chars().skip(2);
 			let value = parse_chars_in_base(16, chars);
 			AST::Con { t: Type::Int { signed: false, length: 32 } }
-		}
-		_ => AST::Con { t: Type::String }
+		},
+		Rule::DecCon => {
+			let chars = con.as_str().chars();
+			let value = parse_chars_in_base(10, chars);
+			AST::Con { t: Type::Int { signed: false, length: 32 } }
+		},
+		_ => { println!("{:#?}", con); unimplemented!() }
 	}
 }
 
