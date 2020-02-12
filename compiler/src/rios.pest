@@ -28,15 +28,25 @@ ReactWhen   = { "when" ~ Expr ~ (WhenOp? ~ Cases | Result) }
 Cases = _{ Case ~ (Cases)* }
 Case = { "|" ~ WhenOp? ~ Expr ~ Result }
 WhenOp = { CompOp|BoolOp|ChangeOp }
-Result = _{ ":" ~ Stmts }
+Result = { ":" ~ Stmts }
 Unit = { "µs"|"ms"|"s"|"m"|"h"|"d" }
 
 VarDec = { Mutable? ~ Type ~ VarName ~ Params? ~ "=" ~ (Stmts|Expr) }
 Mutable = { "mut" }
 Params = { "(" ~ (Param ~ ("," ~ Param)*)? ~ ")" }
 Param = { Type ~ VarName }
-Type = @{ (IntType|"bool"|"float"|"double"|"pin"|"serial"|"proc"|"string"|"char"|"time") ~ "[]"? }
-IntType = { ("u"? ~ "int" ~ ("8"|"16"|"32"|"64")) }
+Type = _{ (IntType|BoolType|FloatType|DoubleType|PinType|SerialType|ProcType|StringType|CharType|TimeType) ~ ArrayType? }
+IntType     = @{ ("u"? ~ "int" ~ ("8"|"16"|"32"|"64")) }
+BoolType    = @{ "bool" }
+FloatType   = @{ "float" }
+DoubleType  = @{ "double" }
+PinType     = { (PinAnalog|PinDigital) ~ "pin" }
+SerialType  = @{ "serial" }
+ProcType    = @{ "proc" }
+StringType  = @{ "string" }
+CharType    = @{ "char" }
+TimeType    = @{ "time" }
+ArrayType   = @{ "[]" }
 
 StateDec = { "default"? ~ "state" ~ StateName ~ "{" ~ Decs ~ "}"  }
 
@@ -46,14 +56,14 @@ Stmts = {
 	"[" ~ Stmt ~ (";" ~ Stmt?)* ~ "]"
 	| Stmt
 }
-Stmt = _{
+Stmt = {
     Enter
     | Run
     | Assign
 	| VarDec
 }
 Assign = { Expr ~ AssignOp ~ Expr }
-AssignOp = { (AritOp|BitOp)? ~ "=" }
+AssignOp = _{ (AritOp|BitOp)? ~ "=" }
 Enter = { "enter" ~ StateName }
 Run = { "run" ~ Expr }
 
@@ -92,12 +102,16 @@ OctCon = @{ "0o" ~ OctDigit+ ~ ("." ~ OctDigit+)? }
 HexCon = @{ "0" ~ ("x"|"h") ~ HexDigit+ ~ ("." ~ HexDigit+)? }
 DecCon = @{ "0d"? ~ DecDigit+ ~ ("." ~ DecDigit+)? }
 BoolCon = @{ "true" | "false" | "high" | "low" }
-PinCon = { PinType ~ "@" ~ PinAddress }
-PinType = { (PinOutput | PinInput ~ ("-"? ~ PinPullup)?) }
+PinCon = { PinPrefix ~ "@" ~ PinAddress }
+PinPrefix = _{ PinPinType? ~ PinDirection }
+PinAddress = @{ "A"? ~ DecDigit+ }
+PinPinType = { PinAnalog | PinDigital }
+PinAnalog  = @{ "a" ~ "nalog"? }
+PinDigital = @{ "d" ~ "igital"? }
+PinDirection = _{ PinOutput | PinInput ~ PinPullup }
 PinOutput = @{ "o" ~ "utput"? }
 PinInput = @{ "i" ~ "nput"? }
 PinPullup = @{ "p" ~ "ullup"? }
-PinAddress = @{ "A"? ~ DecDigit+ }
 SerialCon = @{ ("usb"|"pin") ~ "$" ~ DecDigit+ }
 ArrayCon = !{ "[" ~ Con ~ ("," ~ Con)* ~ ","? ~ "]" }
 StringCon = @{ "\"" ~ NotQuote* ~ "\"" }

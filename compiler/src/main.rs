@@ -28,7 +28,7 @@ enum Operator
 enum Type
 {
 	Serial,
-	Pin,
+	Pin { pintype: Option<PinType>, direction: Option<PinDirection> },
 	Proc,
 	Func { from : Vec<Type>, to : Box<Type> },
 	Array(Box<Type>),
@@ -37,6 +37,20 @@ enum Type
 	Time,
 	Float,	Double,
 	Int { signed: bool, length: i8 },
+}
+
+#[derive(Debug, Copy, Clone)]
+enum PinType
+{
+	Analog,
+	Digital
+}
+
+#[derive(Debug, Copy, Clone)]
+enum PinDirection
+{
+	Input { pullup: bool },
+	Output
 }
 
 #[derive(Debug)]
@@ -58,12 +72,14 @@ enum AST<'a>
 	RunStmt { expr: Box<AST<'a>> },
 	Call { expr: Box<AST<'a>>, parameters: Vec<AST<'a>> },
 	Con { t: Type },
+	Reference { t: Option<Type>, name: &'a str}
 }
 impl<'a> Clone for AST<'a> {
 	fn clone(&self) -> Self {
 		match self {
 			AST::Expr { t, a, op, b } => AST::Expr { t: t.clone(), a: a.clone(), op: op.clone(), b: b.clone() },
-			_ => unimplemented!()
+			AST::Reference { t, name } => AST::Reference { t: t.clone(), name: name.clone() },
+			_ => { println!("{:#?}", self); unimplemented!() }
 		}
 	}
 }
@@ -105,7 +121,7 @@ fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Option<Vec<AST>>, Vec<A
 	let mut reactions = Vec::new();
 	for inner in pair.into_inner() {
 		match inner.as_rule() {
-			Rule::ReactOnenter => onenter = Some(build_ast_stmts(inner.into_inner().next().unwrap())),
+			Rule::ReactOnenter => onenter = Some(build_ast_stmts(inner.into_inner().next().unwrap().into_inner().next().unwrap())),
 			Rule::ReactAlways | Rule::ReactEvery | Rule::ReactAfter | Rule::ReactWhen
 			=> reactions.append(&mut build_ast_reaction(inner)),
 			Rule::VarDec => vars.push(build_ast_var(inner)),
@@ -126,25 +142,37 @@ fn build_ast_var(pair: pest::iterators::Pair<Rule>) -> AST
 		true
 	} else { false };
 
-	let t: Type = match iter.next().unwrap().as_str().trim() {
-		"bool"  => Type::Boolean,
-		"float" => Type::Float,
-		"double"=> Type::Double,
-		"pin"   => Type::Pin,
-		"serial"=> Type::Serial,
-		"proc"  => Type::Proc,
-		"string"=> Type::String,
-		"char"  => Type::Char,
-		"time"  => Type::Time,
-		"uint8" => Type::Int {signed: false, length: 8},
-		"uint16"=> Type::Int {signed: false, length: 16},
-		"uint32"=> Type::Int {signed: false, length: 32},
-		"uint64"=> Type::Int {signed: false, length: 64},
-		"int8"  => Type::Int {signed: true, length: 8},
-		"int16" => Type::Int {signed: true, length: 16},
-		"int32" => Type::Int {signed: true, length: 32},
-		"int64" => Type::Int {signed: true, length: 64},
-		_ => unreachable!(),
+	let type_dec = iter.next().unwrap();
+	let t: Type = match type_dec.as_rule() {
+		Rule::BoolType  => Type::Boolean,
+		Rule::FloatType => Type::Float,
+		Rule::DoubleType=> Type::Double,
+		Rule::PinType   => {
+			match type_dec.into_inner().into_iter().next().unwrap().as_rule() {
+				Rule::PinAnalog => Type::Pin { pintype: Some(PinType::Analog), direction: None },
+				Rule::PinDigital => Type::Pin { pintype: Some(PinType::Digital), direction: None },
+				_ => unreachable!()
+			}
+		},
+		Rule::SerialType=> Type::Serial,
+		Rule::ProcType  => Type::Proc,
+		Rule::StringType=> Type::String,
+		Rule::CharType  => Type::Char,
+		Rule::TimeType  => Type::Time,
+		Rule::IntType   => {
+			match type_dec.as_str().trim() {
+				"uint8" => Type::Int {signed: false, length: 8},
+				"uint16"=> Type::Int {signed: false, length: 16},
+				"uint32"=> Type::Int {signed: false, length: 32},
+				"uint64"=> Type::Int {signed: false, length: 64},
+				"int8"  => Type::Int {signed: true, length: 8},
+				"int16" => Type::Int {signed: true, length: 16},
+				"int32" => Type::Int {signed: true, length: 32},
+				"int64" => Type::Int {signed: true, length: 64},
+				_ => unreachable!()
+			}
+		},
+		_ => { println!("{:#?}", type_dec); unreachable!() }
 	};
 	let name = iter.next().unwrap().as_str();
 	let initial = build_ast_expr(iter.next().unwrap());
@@ -176,6 +204,7 @@ fn build_ast_stmt(pair: pest::iterators::Pair<Rule>) -> AST
 				let right = Some(box build_ast_expr(iter.next().unwrap()));
 				let t: Option<Type> = match &*target {
 					AST::Expr{ t, a: _, op: _, b: _} => t.clone(),
+					AST::Reference { t, name } => t.clone(),
 					_ => {println!("{:#?}", *target);unreachable!()}
 				};
 				let value = box AST::Expr { t, a: Box::new(*target.clone()), op, b: right};
@@ -257,6 +286,7 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 		Rule::ExprCall => build_ast_call_expr(pair),
 		Rule::ExprParen => {
 			let inner = pair.into_inner().into_iter().next().unwrap();
+			println!("{:#?}", inner);
 			match inner.as_rule() {
 				Rule::Expr => build_ast_expr(inner),
 				Rule::Con => build_ast_con(inner),
@@ -376,6 +406,30 @@ fn build_ast_con(pair: pest::iterators::Pair<Rule>) -> AST
 			let chars = con.as_str().chars();
 			let value = parse_chars_in_base(10, chars);
 			AST::Con { t: Type::Int { signed: false, length: 32 } }
+		},
+		Rule::PinCon => {
+			let mut iter = con.into_inner();
+			let pintype = if iter.peek().unwrap().as_rule() == Rule::PinPinType {
+				Some(match iter.next().unwrap().into_inner().next().unwrap().as_rule() {
+					Rule::PinAnalog => PinType::Analog,
+					Rule::PinDigital => PinType::Digital,
+					_ => unreachable!()
+				})
+			} else {
+				None
+			};
+			let direction = Some(match iter.next().unwrap().as_rule() {
+				Rule::PinOutput => PinDirection::Output,
+				Rule::PinInput => {
+					let pullup: bool = iter.peek().unwrap().as_rule() == Rule::PinPullup;
+					PinDirection::Input { pullup }
+				},
+				_ => unreachable!()
+			});
+			AST::Con { t: Type::Pin { pintype, direction } }
+		},
+		Rule::VarName => {
+			AST::Reference { t: None, name: con.as_str() }
 		},
 		_ => { println!("{:#?}", con); unimplemented!() }
 	}

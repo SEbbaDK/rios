@@ -1,4 +1,4 @@
-pin led = output@9
+apin led = aip@9
 mut int8 brightness = 0
 mut int8 fadeAmount = 5
 
