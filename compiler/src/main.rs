@@ -1,19 +1,26 @@
 #![feature(box_syntax)]
 
+use std::fs;
+
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
-use std::fs;
-
+mod parser {
 use pest::Parser;
 
 #[derive(Parser)]
 #[grammar = "rios.pest"]
 pub struct RiosParser;
 
+pub fn parse(input: &str) -> pest::iterators::Pairs<Rule> {
+	RiosParser::parse(Rule::Program, input).expect("Parse failure")
+}
+}
+
+mod structures {
 #[derive(Debug, Copy, Clone)]
-enum Operator
+pub enum Operator
 {
 	AritAdd, AritSub, AritMult, AritDiv, AritMod, AritNeg, AritPos,
 	BitAnd, BitOr, BitXor, BitShiftLeft, BitShiftRight, BitNeg,
@@ -25,7 +32,7 @@ enum Operator
 }
 
 #[derive(Debug, Clone)]
-enum Type
+pub enum Type
 {
 	Serial,
 	Pin { pintype: Option<PinType>, direction: Option<PinDirection> },
@@ -40,28 +47,28 @@ enum Type
 }
 
 #[derive(Debug, Copy, Clone)]
-enum PinType
+pub enum PinType
 {
 	Analog,
 	Digital
 }
 
 #[derive(Debug, Copy, Clone)]
-enum PinDirection
+pub enum PinDirection
 {
 	Input { pullup: bool },
 	Output
 }
 
 #[derive(Debug)]
-enum Time<'a>
+pub enum Time<'a>
 {
 	Millis(Box<AST<'a>>),
 	Micros(Box<AST<'a>>)
 }
 
 #[derive(Debug)]
-enum AST<'a>
+pub enum AST<'a>
 {
 	State { name: &'a str, onenter: Option<Vec<AST<'a>>>, states: Vec<AST<'a>>, vars: Vec<AST<'a>>, reactions: Vec<AST<'a>> },
 	Variable { t: Type, mutable: bool, name: &'a str, initial: Box<AST<'a>> },
@@ -83,18 +90,22 @@ impl<'a> Clone for AST<'a> {
 		}
 	}
 }
+}
 
 fn main()
 {
 	let code = fs::read_to_string("src/fade.rios").expect("Cannot read file");
-	let parsetree: pest::iterators::Pairs<Rule> = RiosParser::parse(Rule::Program, &code).expect("Parse failure");
+	let parsetree = parser::parse(&code);
 	println!("Result of parsing file: {:#?}", parsetree);
 
-	let ast = build_ast(parsetree);
+	let ast = ast::build_ast(parsetree);
 	println!("Result of building AST: {:#?}", ast);
 }
 
-fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
+mod ast {
+use super::parser::Rule;
+use super::structures::{ AST, Operator, Type, PinType, PinDirection, Time };
+pub fn build_ast(mut pairs: pest::iterators::Pairs<Rule>) -> AST
 {
 	let name = "Global";
 	let decs = build_ast_decs(pairs.next().unwrap());
@@ -467,4 +478,5 @@ fn char_to_num(c: char) -> u32
 		'F'|'f' => 15,
 		_  => panic!("char2num: \"{}\" is not a number!", c)
 	}
+}
 }
