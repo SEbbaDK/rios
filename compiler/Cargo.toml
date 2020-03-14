@@ -7,3 +7,5 @@ edition = "2018"
 [dependencies]
 pest = "2.0"
 pest_derive = "2.0"
+ansi_term = "0.12.1"
+clap = "2.33.0"

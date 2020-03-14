@@ -33,7 +33,7 @@ fn build_ast_decs(pair: pest::iterators::Pair<Rule>) -> (Option<Vec<AST>>, Vec<A
 			=> reactions.append(&mut build_ast_reaction(inner)),
 			Rule::VarDec => vars.push(build_ast_var(inner)),
 			Rule::StateDec => states.push(build_ast_state(inner)),
-			_ => { println!("{:#?}",inner);unreachable!() }
+			_ => { println!("{:#?}", inner); unreachable!() }
 		}
 	}
 
@@ -193,11 +193,10 @@ fn build_ast_expr(pair: pest::iterators::Pair<Rule>) -> AST
 		Rule::ExprCall => build_ast_call_expr(pair),
 		Rule::ExprParen => {
 			let inner = pair.into_inner().into_iter().next().unwrap();
-			println!("{:#?}", inner);
 			match inner.as_rule() {
 				Rule::Expr => build_ast_expr(inner),
 				Rule::Con => build_ast_con(inner),
-				_ => unreachable!(),
+				_ => { println!("{:#?}", inner); unreachable!() },
 			}
 		},
 		_ => { println!("{:#?}", pair); unreachable!() }
