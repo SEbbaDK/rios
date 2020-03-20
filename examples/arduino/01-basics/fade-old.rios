@@ -1,0 +1,22 @@
+apin led = analog@ 9
+int brightness = 0
+int fadeAmount = 5
+
+every 30 ms : [
+  led.write(brightness);
+  brightness += fadeAmount;
+]
+
+when brightness
+  | <= 0 : transition(Rising)
+  | >= 255 : transition(Falling)
+
+priority Falling, Rising
+
+default state Rising {
+  onenter : fadeAmount = 5
+}
+
+state Falling {
+  onenter : fadeAmount = -5
+}

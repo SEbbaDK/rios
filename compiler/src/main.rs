@@ -27,30 +27,45 @@ fn main()
 		.author(crate_authors!())
 		.about("Compiles Rios source files into executable programs.")
 		.arg(Arg::with_name("file")
+			.help("The source-code file to compile")
 			.required(true)
-//			.index(1)
-			.help("The source-code file to compile"))
+		)
 		.arg(Arg::with_name("show_syntax_tree")
+			.help("Print the syntax tree")
 			.short("syntax-tree")
 			.long("show-syntax-tree")
-			.help("Print the syntax tree"))
+			.conflicts_with("quiet")
+		)
 		.arg(Arg::with_name("show_abstract_syntax_tree")
+			.help("Print the abstract syntax tree")
 			.short("a")
 			.long("show-ast")
-			.help("Print the abstract syntax tree"))
+			.conflicts_with("quiet")
+		)
 		.arg(Arg::with_name("quiet")
+			.help("Print no output except for errors")
 			.short("q")
 			.long("quiet")
-			.help("Print no output except for errors"))
+		)
+		.arg(Arg::with_name("completion")
+			.help("Completion output for the given input")
+			.short("c")
+			.long("completion")
+			.empty_values(true)
+			.value_name("completion")
+		)
 		.get_matches();
+
+	if input.is_present("completion") {
+		println!("Hello");
+		return;
+	}
 
 	macro_rules! printer {
 		($($arg:tt)*) => { if !input.is_present("quiet") { println!($($arg)*) } };
 	}
 
 	let header = Style::new().bold().fg(Colour::Blue);
-
-	println!("q: {}  st: {}  ast: {}", input.is_present("quiet"), input.is_present("show_syntax_tree"), input.is_present("show_abstract_syntax_tree"));
 
 	let file = input.value_of("file").expect("Couldn't get filename");
 	printer!("Compiling {}", file);

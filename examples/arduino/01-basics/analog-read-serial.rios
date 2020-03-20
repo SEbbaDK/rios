@@ -1,0 +1,4 @@
+apin sensor = analog@A0
+serial sout = $ usb 9600
+
+every 1 ms : sout.println(sensor.read())

@@ -1,0 +1,10 @@
+dpin led = d@ 13
+apin sensor = a@ A0
+int treshold = 100
+
+serial sout = $ usb 9600
+
+when (sensor.read() > treshold) : [
+	sout.println("Knock!");
+	led.toggle();
+]

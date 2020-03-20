@@ -1,0 +1,4 @@
+dpin pushButton = digital @ 2
+serial sout = $ usb 9600
+
+every 1ms : sout.println(pushButton.read())

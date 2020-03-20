@@ -1,0 +1,9 @@
+dpin button = digital@ 2
+dpin led = digital@ 13
+
+when button.read() ==
+  | high : led.write(high)
+  | low  : led.write(low)
+
+//Or:
+//always : led.write(!buttonState.read)

@@ -1,0 +1,3 @@
+dpin led = digital @ 13
+
+every 500ms : led.toggle()

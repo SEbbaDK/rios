@@ -1,0 +1,15 @@
+#!/bin/bash
+sourcefile=${BASH_SOURCE[0]}
+sourcefilefull=$(readlink -f $sourcefile)
+sourcedir=$(dirname $sourcefilefull)
+input=()
+for v in $@
+do
+	if [[ -f $v ]]
+	then
+		input+=" $(pwd)/$v"
+	else
+		input+=" $v"
+	fi
+done
+cd $sourcedir && cargo run -q -- $input

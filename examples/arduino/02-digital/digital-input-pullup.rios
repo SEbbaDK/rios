@@ -1,0 +1,10 @@
+dpin sensor = digital@ 2 pullup
+dpin led = digital@ 13
+
+serial sout = $ usb 9600
+
+always : sout.println(sensor.read())
+
+when led.read() ==
+  | high  : led.write(false)
+  | false : led.write(high)
