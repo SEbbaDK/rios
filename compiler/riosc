@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 sourcefile=${BASH_SOURCE[0]}
 sourcefilefull=$(readlink -f $sourcefile)
 sourcedir=$(dirname $sourcefilefull)
