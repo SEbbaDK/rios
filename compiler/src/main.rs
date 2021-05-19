@@ -1,5 +1,3 @@
-#![feature(box_syntax)]
-
 use std::fs;
 mod parser;
 mod ast;

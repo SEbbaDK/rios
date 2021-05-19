@@ -105,20 +105,20 @@ fn build_ast_stmt(pair: pest::iterators::Pair<Rule>) -> AST
 		Rule::VarDec => build_ast_var(stmt),
 		Rule::Assign => {
 			let mut iter = stmt.into_inner();
-			let target = box build_ast_expr(iter.next().expect("Expected left hand side of assignment to be an expression."));
+			let target = Box::new(build_ast_expr(iter.next().expect("Expected left hand side of assignment to be an expression.")));
 			if iter.peek().unwrap().as_rule() != Rule::Expr {
 				let op = build_ast_operator(iter.next().unwrap());
-				let right = Some(box build_ast_expr(iter.next().unwrap()));
+				let right = Some(Box::new(build_ast_expr(iter.next().unwrap())));
 				let t: Option<Type> = match &*target {
 					AST::Expr{ t, a: _, op: _, b: _} => t.clone(),
 					AST::Reference { t, name } => t.clone(),
 					_ => {println!("{:#?}", *target);unreachable!()}
 				};
-				let value = box AST::Expr { t, a: Box::new(*target.clone()), op, b: right};
+				let value = Box::new(AST::Expr { t, a: Box::new(*target.clone()), op, b: right});
 				AST::AssignStmt { target, op: Some(op), value }
 			}
 			else {
-				let value = box build_ast_expr(iter.next().expect("Expected right hand side of assignment to be an expression."));
+				let value = Box::new(build_ast_expr(iter.next().expect("Expected right hand side of assignment to be an expression.")));
 				AST::AssignStmt { target, op: None, value }
 			}
 		}
@@ -127,7 +127,7 @@ fn build_ast_stmt(pair: pest::iterators::Pair<Rule>) -> AST
 			AST::EnterStmt { state }
 		}
 		Rule::Run => {
-			let expr = box build_ast_expr(stmt.into_inner().next().expect("Expected expr after 'run' keyword."));
+			let expr = Box::new(build_ast_expr(stmt.into_inner().next().expect("Expected expr after 'run' keyword.")));
 			AST::RunStmt { expr }
 		}
 		_ => { println!("{:#?}", stmt.as_rule()); println!("{:#?}", stmt.as_str()); unreachable!() }
