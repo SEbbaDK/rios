@@ -1,0 +1,20 @@
+name: riosc
+version: 0.1.0
+
+# authors:
+#   - name <email@example.com>
+
+# description: |
+#   Short description of llvm
+
+dependencies:
+  pars3k:
+    github: voximity/pars3k
+#     github: will/crystal-pg
+#     version: "~> 0.5"
+
+# development_dependencies:
+#   webmock:
+#     github: manastech/webmock.cr
+
+# license: MIT

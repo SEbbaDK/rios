@@ -1,0 +1,7 @@
+state Memes {
+	john = 5
+}
+
+default state Turbo {
+	john = 6
+}

@@ -1,0 +1,6 @@
+version: 2.0
+shards:
+  pars3k:
+    git: https://github.com/voximity/pars3k.git
+    version: 0.1.0+git.commit.0afdf2575722b84c935ea14de967e3c32135fc32
+
