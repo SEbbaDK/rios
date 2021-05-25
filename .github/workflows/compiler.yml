@@ -1,0 +1,19 @@
+name: "compiler"
+
+on:
+  push:
+    paths:
+      - "compiler/**"
+      - .github/workflows/compiler.yml
+#  pull_request:
+#    paths:
+#      - "server/**"
+#      - .github/workflows/server.yml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: nixbuild/nix-quick-install-action@v5
+      - run: nix-build compiler
