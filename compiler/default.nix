@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> { }
+{ pkgs ? import ./pkgs.nix { }
 , crystal ? pkgs.crystal
 , runCommand ? pkgs.runCommand
 }:
@@ -21,10 +21,6 @@ crystal.buildCrystalPackage {
   lockFile = ./shard.lock;
   shardsFile = ./shards.nix;
 
-  # Disable tests until they work
-  doCheck = false;
-  doInstallCheck = false;
-
-  buildPhase = "crystal build src/riosc.cr && ls -la";
+  buildPhase = "crystal build src/riosc.cr";
   installPhase = "mkdir -p $out/bin && cp riosc $out/bin/";
 }
