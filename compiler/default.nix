@@ -20,4 +20,7 @@ crystal.buildCrystalPackage {
   format = "shards";
   lockFile = ./shard.lock;
   shardsFile = ./shards.nix;
+
+  # Disable tests while the spec causes and impure path error
+  doCheck = false;
 }
