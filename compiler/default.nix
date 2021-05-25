@@ -20,7 +20,4 @@ crystal.buildCrystalPackage {
   format = "shards";
   lockFile = ./shard.lock;
   shardsFile = ./shards.nix;
-
-  buildPhase = "crystal build src/riosc.cr";
-  installPhase = "mkdir -p $out/bin && cp riosc $out/bin/";
 }
